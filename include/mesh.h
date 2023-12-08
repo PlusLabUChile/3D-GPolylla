@@ -1,3 +1,5 @@
+#ifndef GPOL_MESH_H
+#define GPOL_MESH_H
 #include <string>
 #include <vector>
 
@@ -72,3 +74,4 @@ class TetrahedronMesh {
   void display_info();
 };
 }  // namespace GPolylla
+#endif
