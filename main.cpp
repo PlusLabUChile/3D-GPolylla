@@ -1,4 +1,4 @@
-#include <mesh.h>
+#include "GPolylla/mesh.h"
 
 #include <iostream>
 
@@ -11,7 +11,6 @@ int main(int argc, char *argv[]) {
   mesh_name += ".1";
   GPolylla::TetrahedronMesh mesh("data/" + mesh_name + ".node",
                                  "data/" + mesh_name + ".face",
-                                 "data/" + mesh_name + ".ele",
-                                 "data/" + mesh_name + ".edge");
+                                 "data/" + mesh_name + ".ele");
   mesh.display_info();
 }

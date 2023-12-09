@@ -1,20 +1,108 @@
-#include "mesh.h"
+#include "GPolylla/mesh.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <ostream>
+#include <set>
 #include <sstream>
 
+// template <typename T>
+// bool check_in(const std::vector<T> &vec, const T &elem) {
+//   return std::find(vec.begin(), vec.end(), elem) != vec.end();
+// }
+
 namespace GPolylla {
-void TetrahedronMesh::construct_tetrahedral_mesh(
-    const std::string &node_filename, const std::string &face_filename,
-    const std::string &ele_filename, const std::string &edge_filename) {
-  read_node_file(node_filename);
-  read_face_file(face_filename);
-  read_ele_file(ele_filename);
-  read_edge_file(edge_filename);
+using std::pair;
+using std::string;
+using std::vector;
+// Vertex
+Vertex::Vertex() : id(-1), x(0.0f), y(0.0f), z(0.0f) {}
+
+std::ostream &operator<<(std::ostream &os, const Vertex &v) {
+  os << "(Vertex " << v.id << " x: " << v.x << " y: " << v.y << " z: " << v.z
+     << ")";
+  return os;
 }
 
-void TetrahedronMesh::read_node_file(const std::string &filename) {
+// Face
+void get_edges_info(vector<pair<int, int>> *info, const Face &f) {
+  info->push_back(std::make_pair(f.v1, f.v2));
+  info->push_back(std::make_pair(f.v2, f.v3));
+  info->push_back(std::make_pair(f.v3, f.v1));
+}
+Face::Face()
+    : id(-1), v1(-1), v2(-1), v3(-1), n1(-1), n2(-1), is_boundary(false) {}
+std::ostream &operator<<(std::ostream &os, const Face &f) {
+  os << "(Face " << f.id << " Vertex 1: " << f.v1 << " Vertex 2: " << f.v2
+     << " Vertex 3: " << f.v3 << " Edges: {";
+  for (auto &e : f.edges) os << e << ", ";
+  os << "} Neighs: {" << f.n1 << ", " << f.n2 << "})";
+  return os;
+}
+
+// Edge
+Edge::Edge() : id(-1), vi(-1), vf(-1), first_tetra(-1) {}
+std::ostream &operator<<(std::ostream &os, const Edge &e) {
+  os << "(Edge " << e.id << " Vertex i: " << e.vi << " Vertex f: " << e.vf
+     << " Faces: {";
+  for (auto &f : e.faces) os << f << ", ";
+  os << "})";
+  return os;
+}
+
+bool Edge::compare(int v1, int v2) const {
+  return (this->vi == v1 && this->vf == v2) ||
+         (this->vi == v2 && this->vf == v1);
+}
+
+// Tetrahedron
+Tetrahedron::Tetrahedron()
+    : id(-1), v1(-1), v2(-1), v3(-1), v4(-1), is_boundary(false) {}
+std::ostream &operator<<(std::ostream &os, const Tetrahedron &t) {
+  os << "(Tetra " << t.id << " Vertex 1: " << t.v1 << " Vertex 2: " << t.v2
+     << " Vertex 3: " << t.v3 << " Vertex 4: " << t.v4 << " Faces: {";
+  os << "} Neighs: {";
+  for (auto &n : t.neighs) os << n << ", ";
+  os << "})";
+  return os;
+}
+
+// Tetrahedron Mesh
+using emv = vector<vector<int>>;
+using emf = vector<vector<vector<int>>>;
+void TetrahedronMesh::construct_tetrahedral_mesh(
+    const std::string &node_filename, const std::string &face_filename,
+    const std::string &ele_filename) {
+  emv edges_matrix_vertex;
+  emf edges_matrix_faces;
+  read_node_file(node_filename, &edges_matrix_vertex, &edges_matrix_faces);
+  read_face_file(face_filename, &edges_matrix_vertex, &edges_matrix_faces);
+  read_edge_file(&edges_matrix_vertex, &edges_matrix_faces);
+  read_ele_file(ele_filename);
+
+  asign_faces_to_tetras();
+
+  for (auto &face : faces) {
+    if (face.is_boundary) {
+      for (int ei : face.edges) {
+        if (face.n1 != -1) {
+          edges[ei].first_tetra = face.n1;
+        } else {
+          edges[ei].first_tetra = face.n2;
+        }
+      }
+    }
+  }
+
+  for (auto &tetra : tetras) {
+    asign_neighs(&tetra);
+  }
+}
+
+void TetrahedronMesh::read_node_file(const std::string &filename, emv *emv,
+                                     emf *emf) {
   std::cout << "Reading node file: " << filename << std::endl;
   std::ifstream file(filename);
   if (!file.is_open()) {
@@ -27,7 +115,8 @@ void TetrahedronMesh::read_node_file(const std::string &filename) {
   int num_nodes;
   iss >> num_nodes;
   nodes.reserve(num_nodes);
-  std::cout << "Number of nodes: " << num_nodes << std::endl;
+  emv->resize(num_nodes);
+  emf->resize(num_nodes);
   while (std::getline(file, line)) {
     std::istringstream iss(line);
     std::string token;
@@ -41,7 +130,8 @@ void TetrahedronMesh::read_node_file(const std::string &filename) {
   file.close();
 }
 
-void TetrahedronMesh::read_face_file(const std::string &filename) {
+void TetrahedronMesh::read_face_file(const std::string &filename, emv *emv,
+                                     emf *emf) {
   std::cout << "Reading face file: " << filename << std::endl;
   std::ifstream file(filename);
   if (!file.is_open()) {
@@ -54,7 +144,6 @@ void TetrahedronMesh::read_face_file(const std::string &filename) {
   int num_faces;
   iss >> num_faces;
   faces.reserve(num_faces);
-  std::cout << "Number of faces: " << num_faces << std::endl;
   while (std::getline(file, line)) {
     std::istringstream iss(line);
     std::string token;
@@ -63,11 +152,40 @@ void TetrahedronMesh::read_face_file(const std::string &filename) {
     Face face;
     face.id = std::stoi(token);
     iss >> face.v1 >> face.v2 >> face.v3;
-    int bm;
-    iss >> bm;
-    face.is_boundary = (bm == 1 || bm == -1);
-    iss >> face.n1 >> face.n2;
+    // int bm;
+    // iss >> bm;
+    // face.is_boundary = (bm == 1 || bm == -1);
+    // iss >> face.n1 >> face.n2;
     faces.push_back(face);
+
+    // Save edges data
+    vector<pair<int, int>> edges_info;
+    get_edges_info(&edges_info, face);
+    for (auto &edge_info : edges_info) {
+      auto itvi = std::find(emv->at(edge_info.first).begin(),
+                            emv->at(edge_info.first).end(), edge_info.second);
+      auto itvf = std::find(emv->at(edge_info.second).begin(),
+                            emv->at(edge_info.second).end(), edge_info.first);
+      if (itvi == emv->at(edge_info.first).end() &&
+          itvf == emv->at(edge_info.second).end()) {
+        // New edge
+        emv->at(edge_info.first).push_back(edge_info.second);
+        vector<int> fs;
+        fs.push_back(face.id);
+        emf->at(edge_info.first).push_back(fs);
+      } else {
+        // Already exists
+        if (itvi != emv->at(edge_info.first).end()) {
+          // Is missing in the first vertex info
+          int index = std::distance(emv->at(edge_info.first).begin(), itvi);
+          emf->at(edge_info.first)[index].push_back(face.id);
+        } else {
+          // Is missing in the second vertex info
+          int index = std::distance(emv->at(edge_info.second).begin(), itvf);
+          emf->at(edge_info.second)[index].push_back(face.id);
+        }
+      }
+    }
   }
   file.close();
 }
@@ -85,7 +203,6 @@ void TetrahedronMesh::read_ele_file(const std::string &filename) {
   int num_tetras;
   iss >> num_tetras;
   tetras.reserve(num_tetras);
-  std::cout << "Number of tetrahedrons: " << num_tetras << std::endl;
   while (std::getline(file, line)) {
     std::istringstream iss(line);
     std::string token;
@@ -99,59 +216,119 @@ void TetrahedronMesh::read_ele_file(const std::string &filename) {
   file.close();
 }
 
-void TetrahedronMesh::read_edge_file(const std::string &filename) {
-  std::cout << "Reading edge file: " << filename << std::endl;
-  std::ifstream file(filename);
-  if (!file.is_open()) {
-    std::cerr << "Unable to open file: " << filename << std::endl;
-    exit(1);
+// void TetrahedronMesh::read_edge_file(const std::string &filename, emv *emv,
+//                                      emf *emf) {
+//   std::cout << "Reading edge file: " << filename << std::endl;
+//   std::ifstream file(filename);
+//   if (!file.is_open()) {
+//     std::cerr << "Unable to open file: " << filename << std::endl;
+//     exit(1);
+//   }
+//   std::string line;
+//   std::getline(file, line);
+//   std::istringstream iss(line);
+//   int num_edges;
+//   iss >> num_edges;
+//   tetras.reserve(num_edges);
+//   while (std::getline(file, line)) {
+//     std::istringstream iss(line);
+//     std::string token;
+//     iss >> token;
+//     if (token == "#") continue;
+//     Edge e;
+//     e.id = std::stoi(token);
+//     iss >> e.v1 >> e.v2;
+//     int bm;
+//     iss >> bm;
+//     e.is_boundary = bm == 1;
+//     iss >> e.first_tetra;
+//     edges.push_back(e);
+//   }
+//   file.close();
+// }
+//
+void TetrahedronMesh::read_edge_file(emv *emv, emf *emf) {
+  int ei = 0;
+  for (int vi = 0; vi < emv->size(); vi++) {
+    for (int j = 0; j < emv->at(vi).size(); j++) {
+      int vf = emv->at(vi)[j];
+      auto efaces = emf->at(vi)[j];
+      Edge e;
+      e.id = ei++;
+      e.vi = vi;
+      e.vf = vf;
+      e.faces = efaces;
+      edges.push_back(e);
+      for (int fi : e.faces) {
+        auto face = faces[fi];
+        face.edges.push_back(e.id);
+      }
+    }
   }
-  std::string line;
-  std::getline(file, line);
-  std::istringstream iss(line);
-  int num_edges;
-  iss >> num_edges;
-  tetras.reserve(num_edges);
-  std::cout << "Number of edges: " << num_edges << std::endl;
-  while (std::getline(file, line)) {
-    std::istringstream iss(line);
-    std::string token;
-    iss >> token;
-    if (token == "#") continue;
-    Edge e;
-    e.id = std::stoi(token);
-    iss >> e.v1 >> e.v2;
-    int bm;
-    iss >> bm;
-    e.is_boundary = bm == 1;
-    iss >> e.first_tetra;
-    edges.push_back(e);
+}
+
+void TetrahedronMesh::asign_faces_to_tetras() {
+  for (auto &f : faces) {
+    for (auto &t : tetras) {
+      std::set<int> ts = {t.v1, t.v2, t.v3, t.v4};
+      std::set<int> fs = {f.v1, f.v2, f.v3};
+      std::set<int> inter;
+      std::set_intersection(ts.begin(), ts.end(), fs.begin(), fs.end(),
+                            std::inserter(inter, inter.begin()));
+      if (inter == fs) {
+        t.faces.push_back(f.id);
+        f.neighs.push_back(t.id);
+      }
+    }
   }
-  file.close();
+}
+
+void TetrahedronMesh::asign_neighs(Tetrahedron *t) {
+  std::vector<int> neighs;
+  for (int fi : t->faces) {
+    auto &face = faces[fi];
+    if (face.neighs.size() < 2) {
+      t->is_boundary = true;
+      face.is_boundary = true;
+    }
+
+    face.n1 = face.neighs[0];
+    if (face.n1 != t->id) {
+      neighs.push_back(face.n1);
+    }
+    if (!face.is_boundary) {
+      face.n2 = face.neighs[1];
+      if (face.n2 != t->id) {
+        neighs.push_back(face.n2);
+      }
+    } else {
+      neighs.push_back(-1);
+    }
+    t->neighs = neighs;
+  }
 }
 
 TetrahedronMesh::TetrahedronMesh(const std::string &node_filename,
                                  const std::string &face_filename,
-                                 const std::string &ele_filename,
-                                 const std::string &edge_filename) {
-  construct_tetrahedral_mesh(node_filename, face_filename, ele_filename,
-                             edge_filename);
+                                 const std::string &ele_filename) {
+  construct_tetrahedral_mesh(node_filename, face_filename, ele_filename);
 }
 
 Face &TetrahedronMesh::get_face(int id) { return faces[id]; }
 Tetrahedron &TetrahedronMesh::get_tetra(int id) { return tetras[id]; }
 Edge &TetrahedronMesh::get_edge(int id) { return edges[id]; }
 Vertex &TetrahedronMesh::get_vertex(int id) { return nodes[id]; }
-int TetrahedronMesh::num_faces() { return faces.size(); }
-int TetrahedronMesh::num_tetrahedrons() { return tetras.size(); }
-int TetrahedronMesh::num_edges() { return edges.size(); }
-int TetrahedronMesh::num_nodes() { return nodes.size(); }
+int TetrahedronMesh::num_faces() const { return faces.size(); }
+int TetrahedronMesh::num_tetrahedrons() const { return tetras.size(); }
+int TetrahedronMesh::num_edges() const { return edges.size(); }
+int TetrahedronMesh::num_nodes() const { return nodes.size(); }
 
-void TetrahedronMesh::display_info() {
+void TetrahedronMesh::display_info() const {
   std::cout << "Number of nodes: " << num_nodes() << std::endl;
   std::cout << "Number of faces: " << num_faces() << std::endl;
   std::cout << "Number of tetrahedrons: " << num_tetrahedrons() << std::endl;
   std::cout << "Number of edges: " << num_edges() << std::endl;
+  for (auto &f : faces) std::cout << f << std::endl;
 }
 
 }  // namespace GPolylla
