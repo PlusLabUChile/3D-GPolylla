@@ -318,6 +318,23 @@ Face &TetrahedronMesh::get_face(int id) { return faces[id]; }
 Tetrahedron &TetrahedronMesh::get_tetra(int id) { return tetras[id]; }
 Edge &TetrahedronMesh::get_edge(int id) { return edges[id]; }
 Vertex &TetrahedronMesh::get_vertex(int id) { return nodes[id]; }
+
+vector<vector<double>> TetrahedronMesh::get_vertices() const {
+  vector<vector<double>> vertices;
+  for (auto &v : nodes) {
+    vertices.push_back({v.x, v.y, v.z});
+  }
+  return vertices;
+}
+
+vector<vector<int>> TetrahedronMesh::get_faces() const {
+  vector<vector<int>> faces;
+  for (auto &f : this->faces) {
+    faces.push_back({f.v1, f.v2, f.v3});
+  }
+  return faces;
+}
+
 int TetrahedronMesh::num_faces() const { return faces.size(); }
 int TetrahedronMesh::num_tetrahedrons() const { return tetras.size(); }
 int TetrahedronMesh::num_edges() const { return edges.size(); }
@@ -328,7 +345,19 @@ void TetrahedronMesh::display_info() const {
   std::cout << "Number of faces: " << num_faces() << std::endl;
   std::cout << "Number of tetrahedrons: " << num_tetrahedrons() << std::endl;
   std::cout << "Number of edges: " << num_edges() << std::endl;
-  for (auto &f : faces) std::cout << f << std::endl;
 }
 
+void TetrahedronMesh::write_off(const string &filename) const {
+  std::cout << "Writing mesh to: " << filename << std::endl;
+  std::ofstream out(filename);
+  out << "OFF" << std::endl;
+  out << num_nodes() << " " << num_faces() << " 0" << std::endl;
+  for (auto &v : nodes) {
+    out << v.x << " " << v.y << " " << v.z << std::endl;
+  }
+  for (auto &f : faces) {
+    out << "3 " << f.v1 << " " << f.v2 << " " << f.v3 << std::endl;
+  }
+  out.close();
+}
 }  // namespace GPolylla

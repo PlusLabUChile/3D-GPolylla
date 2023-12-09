@@ -3,7 +3,8 @@ BUILD_TYPE=Debug
 BUILD_DIR=build
 BIN_DIR:=$(BUILD_DIR)/$(BUILD_TYPE)
 TARGET=gpol
-MESH=3D_100
+MESH=socket.1
+OUT=test.off
 
 .PHONY: all clean build run
 
@@ -13,10 +14,10 @@ init:
 	@cp $(BIN_DIR)/compile_commands.json .
 
 build:
-	$(CMAKE) --build $(BIN_DIR)/
+	$(CMAKE) --build $(BIN_DIR)/ -t $(TARGET)
 
 run: build
-	./$(BIN_DIR)/gpol $(MESH)
+	./$(BIN_DIR)/$(TARGET) data/$(MESH) $(OUT)
 
 clean:
 	rm -rf $(BUILD_DIR)

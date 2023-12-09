@@ -1,0 +1,6 @@
+[submodule "extern/polyscope"]
+	path = extern/polyscope
+	url = https://github.com/nmwsharp/polyscope.git
+[submodule "extern/tetgen"]
+	path = extern/tetgen
+	url = https://github.com/libigl/tetgen.git

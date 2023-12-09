@@ -2,7 +2,6 @@
 #define GPOL_MESH_H
 #include <iostream>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace GPolylla {
@@ -83,11 +82,14 @@ class TetrahedronMesh {
   Tetrahedron& get_tetra(int id);
   Edge& get_edge(int id);
   Vertex& get_vertex(int id);
+  std::vector<std::vector<int>> get_faces() const;
+  std::vector<std::vector<double>> get_vertices() const;
   int num_faces() const;
   int num_tetrahedrons() const;
   int num_edges() const;
   int num_nodes() const;
   void display_info() const;
+  void write_off(const std::string& filename) const;
 
  private:
   void construct_tetrahedral_mesh(const std::string& node_filename,
