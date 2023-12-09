@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/build/Debug",
+  "command": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  -I\"/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/include\" -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk -std=gnu++20 -o CMakeFiles/gpol.dir/main.cpp.o -c \"/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/main.cpp\"",
+  "file": "/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/main.cpp"
+},
+{
+  "directory": "/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/build/Debug/src",
+  "command": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++  -I\"/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/include\" -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk -std=gnu++20 -o CMakeFiles/GPolylla.dir/mesh.cpp.o -c \"/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/src/mesh.cpp\"",
+  "file": "/Volumes/Dev/Universidad/Introducción al Trabajo de Título/Trabajo/src/mesh.cpp"
+}
+]
