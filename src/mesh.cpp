@@ -17,6 +17,10 @@ namespace GPolylla {
 using std::pair;
 using std::string;
 using std::vector;
+
+// Polyhedron
+Polyhedron::Polyhedron() : was_repaired(false) {}
+
 // Vertex
 Vertex::Vertex() : id(-1), x(0.0f), y(0.0f), z(0.0f) {}
 
@@ -43,7 +47,7 @@ std::ostream &operator<<(std::ostream &os, const Face &f) {
 }
 
 // Edge
-Edge::Edge() : id(-1), vi(-1), vf(-1), first_tetra(-1) {}
+Edge::Edge() : id(-1), vi(-1), vf(-1), first_tetra(-1), length(0.0f) {}
 std::ostream &operator<<(std::ostream &os, const Edge &e) {
   os << "(Edge " << e.id << " Vertex i: " << e.vi << " Vertex f: " << e.vf
      << " Faces: {";
@@ -311,6 +315,7 @@ void TetrahedronMesh::asign_neighs(Tetrahedron *t) {
 TetrahedronMesh::TetrahedronMesh(const std::string &node_filename,
                                  const std::string &face_filename,
                                  const std::string &ele_filename) {
+  std::cout << "Constructing mesh from files..." << std::endl;
   construct_tetrahedral_mesh(node_filename, face_filename, ele_filename);
 }
 

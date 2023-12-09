@@ -46,6 +46,7 @@ class Edge {
   int vi, vf;
   std::vector<int> faces;
   int first_tetra;
+  double length;
 
  public:
   Edge();
@@ -68,7 +69,7 @@ class Tetrahedron {
 };
 
 class TetrahedronMesh {
- private:
+ public:
   std::vector<Vertex> nodes;
   std::vector<Face> faces;
   std::vector<Tetrahedron> tetras;
