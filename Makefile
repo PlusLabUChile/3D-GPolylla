@@ -3,7 +3,7 @@ BUILD_TYPE=Release
 BUILD_DIR=build
 BIN_DIR:=$(BUILD_DIR)/$(BUILD_TYPE)
 TARGET=gpol
-MESH=socket.1
+MESH=1000points.1
 OUT=test.off
 
 .PHONY: all clean build run

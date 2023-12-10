@@ -84,6 +84,7 @@ class TetrahedronMesh {
   Edge& get_edge(int id);
   Vertex& get_vertex(int id);
   std::vector<std::vector<int>> get_faces() const;
+  std::vector<std::vector<int>> get_tetrahedrons() const;
   std::vector<std::vector<double>> get_vertices() const;
   int num_faces() const;
   int num_tetrahedrons() const;

@@ -343,6 +343,13 @@ vector<vector<int>> TetrahedronMesh::get_faces() const {
   }
   return faces;
 }
+vector<vector<int>> TetrahedronMesh::get_tetrahedrons() const {
+  vector<vector<int>> tetrahedrons;
+  for (auto &t : tetras) {
+    tetrahedrons.push_back({t.v1, t.v2, t.v3, t.v4});
+  }
+  return tetrahedrons;
+}
 
 int TetrahedronMesh::num_faces() const { return faces.size(); }
 int TetrahedronMesh::num_tetrahedrons() const { return tetras.size(); }

@@ -31,5 +31,8 @@ class PolyllaFace {
 
  public:
   explicit PolyllaFace(const std::shared_ptr<TetrahedronMesh>& mesh);
+  Polyhedron& get_polyhedron(int id);
+  int num_polyhedra() const;
+
 };
 }  // namespace GPolylla

@@ -278,4 +278,11 @@ void PolyllaFace::repair_phase(const std::vector<int>& polyhedron,
     }
   }
 }
+
+Polyhedron& PolyllaFace::get_polyhedron(int id) {
+  return polyhedral_mesh.at(id);
+}
+
+int PolyllaFace::num_polyhedra() const { return polyhedral_mesh.size(); }
+
 }  // namespace GPolylla
