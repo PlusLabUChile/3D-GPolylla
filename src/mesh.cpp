@@ -67,6 +67,7 @@ Tetrahedron::Tetrahedron()
 std::ostream &operator<<(std::ostream &os, const Tetrahedron &t) {
   os << "(Tetra " << t.id << " Vertex 1: " << t.v1 << " Vertex 2: " << t.v2
      << " Vertex 3: " << t.v3 << " Vertex 4: " << t.v4 << " Faces: {";
+  for (auto &f : t.faces) os << f << ", ";
   os << "} Neighs: {";
   for (auto &n : t.neighs) os << n << ", ";
   os << "})";
@@ -264,7 +265,7 @@ void TetrahedronMesh::read_edge_file(emv *emv, emf *emf) {
       e.faces = efaces;
       edges.push_back(e);
       for (int fi : e.faces) {
-        auto face = faces[fi];
+        auto &face = faces[fi];
         face.edges.push_back(e.id);
       }
     }
@@ -320,7 +321,10 @@ TetrahedronMesh::TetrahedronMesh(const std::string &node_filename,
 }
 
 Face &TetrahedronMesh::get_face(int id) { return faces[id]; }
-Tetrahedron &TetrahedronMesh::get_tetra(int id) { return tetras[id]; }
+Tetrahedron &TetrahedronMesh::get_tetra(int id) {
+  // std::cout << "Trying to get " << id << std::endl;
+  return tetras[id];
+}
 Edge &TetrahedronMesh::get_edge(int id) { return edges[id]; }
 Vertex &TetrahedronMesh::get_vertex(int id) { return nodes[id]; }
 

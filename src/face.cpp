@@ -66,10 +66,8 @@ PolyllaFace::PolyllaFace(const shared_ptr<TetrahedronMesh>& mesh)
 void PolyllaFace::calculate_max_incircle_faces() {
   std::cout << "Calculating max incircle faces..." << std::endl;
   calculate_edges_length(mesh.get());
-  std::cout << "A" << std::endl;
   vector<double> face_radious;
   for (auto& face : mesh->faces) {
-    std::cout << face << std::endl;
     double length_edge_a = mesh->edges[face.edges[0]].length;
     double length_edge_b = mesh->edges[face.edges[1]].length;
     double length_edge_c = mesh->edges[face.edges[2]].length;
@@ -80,7 +78,6 @@ void PolyllaFace::calculate_max_incircle_faces() {
     face_radious.push_back(radious);
   }
 
-  std::cout << "A" << std::endl;
   for (auto& tetra : mesh->tetras) {
     double a0 = face_radious[tetra.faces[0]];
     double a1 = face_radious[tetra.faces[1]];
@@ -113,6 +110,9 @@ void PolyllaFace::calculate_seed_tetrahedrons() {
     } else if (n2 == -1 && mesh->get_tetra(n1).faces[longest_faces[n1]] == fi) {
       seed_tetra.push_back(n1);
     } else {
+      // fix -1 values
+      n1 = (n1 + longest_faces.size()) % longest_faces.size();
+      n2 = (n2 + longest_faces.size()) % longest_faces.size();
       int longest_face_n1 = mesh->get_tetra(n1).faces[longest_faces[n1]];
       int longest_face_n2 = mesh->get_tetra(n2).faces[longest_faces[n2]];
       if (fi == longest_face_n1 && fi == longest_face_n2) {
@@ -144,7 +144,7 @@ void PolyllaFace::depth_first_search(vector<int>* polyhedron,
   visited_tetra[tetra] = true;
   polyhedron_tetras->push_back(tetra);
 
-  for (int i = 0; i <= 4; i++) {
+  for (int i = 0; i < 4; i++) {
     int fi = mesh->get_tetra(tetra).faces[i];
     const auto& neighs = mesh->get_tetra(tetra).neighs;
     if (fi != -1) {
@@ -179,25 +179,6 @@ int PolyllaFace::count_barrier_faces(const std::vector<int>& polyhedron) {
 void PolyllaFace::detect_barrier_face_tips(
     const std::vector<int>& terminal_face,
     std::vector<int>* barrier_face_tips) {
-  /*
-          barrierFacesTips = []
-          #list of all reapeted faces
-          barrierFaces = [k for k, v in Counter(terminalFace).items() if v > 1]
-          #List of all edges of the barrier faces
-          possibleTips = set()
-          for face in barrierFaces:
-              possibleTips.update(self.mesh.face_list[face].edges)
-          possibleTips = list(possibleTips)
-          for e in possibleTips:
-              #List of all faces incident to e
-              face_of_edge = self.mesh.edge_list[e].faces
-              L1 = len(list(set(face_of_edge) & set(terminalFace)))
-              L2 = len(terminalFace)
-              if L2 - L1 == L2 - 1:
-                  barrierFacesTips.append(e)
-          return barrierFacesTips
-
-   */
   std::unordered_map<int, int> counter;
   for (int fi : terminal_face) {
     counter[fi]++;

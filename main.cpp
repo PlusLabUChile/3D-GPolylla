@@ -18,18 +18,12 @@ int main(int argc, char *argv[]) {
   auto start = std::chrono::high_resolution_clock::now();
   auto mesh = std::make_shared<GPolylla::TetrahedronMesh>(
       input_mesh + ".node", input_mesh + ".face", input_mesh + ".ele");
+  GPolylla::PolyllaFace pmesh(mesh);
   auto end = std::chrono::high_resolution_clock::now();
   auto delta1 =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "Total construction time: " << delta1.count() << "ms"
+      std::chrono::duration_cast<std::chrono::seconds>(end - start);
+  std::cout << "Total time: " << delta1.count() << " secs"
             << std::endl;
-  // mesh->write_off(output_file);
-  start = std::chrono::high_resolution_clock::now();
-  GPolylla::PolyllaFace pmesh(mesh);
-  end = std::chrono::high_resolution_clock::now();
-  auto delta2 =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "Total Polylla time: " << delta2.count() << "ms" << std::endl;
   mesh->display_info();
   polyscope::init();
   polyscope::registerSurfaceMesh(output_file, mesh->get_vertices(),

@@ -1,5 +1,5 @@
 CMAKE=cmake
-BUILD_TYPE=Debug
+BUILD_TYPE=Release
 BUILD_DIR=build
 BIN_DIR:=$(BUILD_DIR)/$(BUILD_TYPE)
 TARGET=gpol
