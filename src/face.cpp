@@ -1,6 +1,7 @@
 #include "GPolylla/face.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <iterator>
 #include <numeric>
@@ -28,7 +29,6 @@ void calculate_edges_length(TetrahedronMesh* mesh) {
 PolyllaFace::PolyllaFace(const shared_ptr<TetrahedronMesh>& mesh)
     : n_barries_faces(0), polyhedra_with_barries(0) {
   this->mesh = mesh;
-  std::cout << "Calculating PolyllaFace..." << std::endl;
   calculate_max_incircle_faces();
   calculate_seed_tetrahedrons();
   calculate_frontier_faces();
@@ -36,7 +36,6 @@ PolyllaFace::PolyllaFace(const shared_ptr<TetrahedronMesh>& mesh)
   visited_tetra.resize(mesh->num_tetrahedrons(), false);
   seed_tetra_in_repair.resize(mesh->num_tetrahedrons(), false);
 
-  std::cout << "Aplying DFS" << std::endl;
   for (int ti : seed_tetra) {
     vector<int> polyhedron;
     vector<int> polyhedron_tetras;

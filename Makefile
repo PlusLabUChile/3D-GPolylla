@@ -1,9 +1,9 @@
 CMAKE=cmake
-BUILD_TYPE=Release
+BUILD_TYPE=Debug
 BUILD_DIR=build
 BIN_DIR:=$(BUILD_DIR)/$(BUILD_TYPE)
 TARGET=gpol
-MESH=1000points.1
+MESH=socket.1
 OUT=test.off
 
 .PHONY: all clean build run

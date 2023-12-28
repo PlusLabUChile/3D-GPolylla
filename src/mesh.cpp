@@ -1,9 +1,9 @@
 #include "GPolylla/mesh.h"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
@@ -82,13 +82,18 @@ void TetrahedronMesh::construct_tetrahedral_mesh(
     const std::string &ele_filename) {
   emv edges_matrix_vertex;
   emf edges_matrix_faces;
+  auto t0 = std::chrono::high_resolution_clock::now();
   read_node_file(node_filename, &edges_matrix_vertex, &edges_matrix_faces);
+  auto t1 = std::chrono::high_resolution_clock::now();
   read_face_file(face_filename, &edges_matrix_vertex, &edges_matrix_faces);
+  auto t2 = std::chrono::high_resolution_clock::now();
   read_edge_file(&edges_matrix_vertex, &edges_matrix_faces);
+  auto t3 = std::chrono::high_resolution_clock::now();
   read_ele_file(ele_filename);
+  auto t4 = std::chrono::high_resolution_clock::now();
 
   asign_faces_to_tetras();
-
+  auto t5 = std::chrono::high_resolution_clock::now();
   for (auto &face : faces) {
     if (face.is_boundary) {
       for (int ei : face.edges) {
@@ -101,9 +106,43 @@ void TetrahedronMesh::construct_tetrahedral_mesh(
     }
   }
 
+  auto t6 = std::chrono::high_resolution_clock::now();
   for (auto &tetra : tetras) {
     asign_neighs(&tetra);
   }
+  auto t7 = std::chrono::high_resolution_clock::now();
+  std::cout
+      << "Time for nodes: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for faces: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for edges: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for tetras: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for face to tetras: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for edges to faces: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t6 - t5).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Time for tetras to neighs: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t7 - t6).count()
+      << " ms" << std::endl;
+  std::cout
+      << "Total time: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(t7 - t0).count()
+      << " ms" << std::endl;
 }
 
 void TetrahedronMesh::read_node_file(const std::string &filename, emv *emv,
