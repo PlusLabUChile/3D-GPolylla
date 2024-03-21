@@ -6,7 +6,7 @@ TARGET=gpol
 MESH=socket.1
 OUT=test.off
 
-.PHONY: all clean build run
+.PHONY: all clean build run autoload
 
 init:
 	@mkdir -p $(BUILD_DIR)/
@@ -21,3 +21,6 @@ run: build
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+autoload: 
+	find src/ | entr -s "make build"
