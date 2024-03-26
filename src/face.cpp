@@ -165,8 +165,8 @@ int PolyllaFace::count_barrier_faces(const std::vector<int>& polyhedron) {
     counter[fi]++;
   }
   int repeated =
-      std::reduce(counter.begin(), counter.end(), 0,
-                  [](int acc, auto& pair) { return acc + (pair.second > 1); });
+      std::reduce(counter.begin(), counter.end(), std::pair(0, 0),
+                  [](auto& acc, auto& pair) { return std::pair(0, acc.second + (pair.second > 1)); }).second;
 
   if (repeated > 0) {
     n_barries_faces += repeated;
