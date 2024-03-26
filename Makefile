@@ -14,7 +14,7 @@ init:
 	@cp $(BIN_DIR)/compile_commands.json .
 
 build:
-	$(CMAKE) --build $(BIN_DIR)/ -t $(TARGET)
+	$(CMAKE) --build $(BIN_DIR) -j 10
 
 run: build
 	./$(BIN_DIR)/$(TARGET) data/$(MESH) $(OUT)
