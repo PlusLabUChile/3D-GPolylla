@@ -27,12 +27,12 @@ class PolyllaFace {
   void repair_phase(const std::vector<int>& polyhedron,
                     const std::vector<int>& barrier_face_tips);
   void depth_first_search(std::vector<int>* polyhedra,
+
                           std::vector<int>* poly_tetras, int tetra);
 
  public:
   explicit PolyllaFace(const std::shared_ptr<TetrahedronMesh>& mesh);
   Polyhedron& get_polyhedron(int id);
   int num_polyhedra() const;
-
 };
 }  // namespace GPolylla

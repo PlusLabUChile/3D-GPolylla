@@ -39,10 +39,12 @@ int main(int argc, char* argv[]) {
   vector<array<double, 3>> cell_colors(mesh->num_tetrahedrons());
   for (int i = 0; i < pmesh.num_polyhedra(); i++) {
     auto& poly = pmesh.get_polyhedron(i);
-    for (int ti : poly.tetras) {
+    for (int ti : poly.tetrahedrons) {
       cell_colors[ti] = pol_colors[i];
     }
   }
+
+  
   polyscope::init();
   polyscope::registerTetMesh(output_file, mesh->get_vertices(),
                              mesh->get_tetrahedrons());

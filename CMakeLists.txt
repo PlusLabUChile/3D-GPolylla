@@ -7,7 +7,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 
 add_subdirectory(extern)
 add_subdirectory(src)
-add_executable(gpol main.cpp)
-target_link_libraries(gpol GPolylla polyscope tetgen)
 # target_include_directories(gpol PUBLIC "${PROJECT_SOURCE_DIR}/include")
 file(COPY "${PROJECT_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}")

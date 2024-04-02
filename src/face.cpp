@@ -1,8 +1,8 @@
 #include "GPolylla/face.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <set>
@@ -40,6 +40,7 @@ PolyllaFace::PolyllaFace(const shared_ptr<TetrahedronMesh>& mesh)
     vector<int> polyhedron;
     vector<int> polyhedron_tetras;
     depth_first_search(&polyhedron, &polyhedron_tetras, ti);
+    // depth_first_search(&polyhedron, &polyhedron_tetras, ti);
     // check if polyhedron has barrier faces
     int barrier_faces = count_barrier_faces(polyhedron);
     if (barrier_faces > 0) {
@@ -55,7 +56,7 @@ PolyllaFace::PolyllaFace(const shared_ptr<TetrahedronMesh>& mesh)
       repair_phase(polyhedron, barrier_face_tips);
     } else {
       Polyhedron poly;
-      poly.tetras = polyhedron_tetras;
+      poly.tetrahedrons = polyhedron_tetras;
       poly.faces = polyhedron;
       polyhedral_mesh.push_back(poly);
     }
@@ -92,7 +93,7 @@ void PolyllaFace::calculate_max_incircle_faces() {
     } else if (max_face == a3) {
       longest_faces.push_back(3);
     } else {
-      std::cout << "Error in function calculate_max_incircle_faces"
+      std::cerr << "Error in function calculate_max_incircle_faces"
                 << std::endl;
     }
   }
@@ -101,8 +102,8 @@ void PolyllaFace::calculate_max_incircle_faces() {
 void PolyllaFace::calculate_seed_tetrahedrons() {
   std::cout << "Calculating seed tetrahedrons..." << std::endl;
   for (int fi = 0; fi < mesh->num_faces(); fi++) {
-    int n1 = mesh->faces[fi].n1;
-    int n2 = mesh->faces[fi].n2;
+    int n1 = mesh->faces[fi].ni;
+    int n2 = mesh->faces[fi].nf;
 
     if (n1 == -1 && mesh->get_tetra(n2).faces[longest_faces[n2]] == fi) {
       seed_tetra.push_back(n2);
@@ -124,8 +125,8 @@ void PolyllaFace::calculate_seed_tetrahedrons() {
 void PolyllaFace::calculate_frontier_faces() {
   std::cout << "Calculating frontier faces..." << std::endl;
   for (int fi = 0; fi < mesh->num_faces(); fi++) {
-    int n1 = mesh->get_face(fi).n1;
-    int n2 = mesh->get_face(fi).n2;
+    int n1 = mesh->get_face(fi).ni;
+    int n2 = mesh->get_face(fi).nf;
     frontier_faces.reserve(mesh->num_faces());
     if (n1 == -1 || n2 == -1) {
       frontier_faces.push_back(true);
@@ -166,7 +167,10 @@ int PolyllaFace::count_barrier_faces(const std::vector<int>& polyhedron) {
   }
   int repeated =
       std::reduce(counter.begin(), counter.end(), std::pair(0, 0),
-                  [](auto& acc, auto& pair) { return std::pair(0, acc.second + (pair.second > 1)); }).second;
+                  [](auto& acc, auto& pair) {
+                    return std::pair(0, acc.second + (pair.second > 1));
+                  })
+          .second;
 
   if (repeated > 0) {
     n_barries_faces += repeated;
@@ -250,8 +254,8 @@ void PolyllaFace::repair_phase(const std::vector<int>& polyhedron,
     frontier_faces[middle_face] = true;
 
     // store adjacent tetrahedrons to the sub seed list
-    int t1 = mesh->get_face(barrier_face).n1;
-    int t2 = mesh->get_face(barrier_face).n2;
+    int t1 = mesh->get_face(barrier_face).ni;
+    int t2 = mesh->get_face(barrier_face).nf;
     tetra_list.push_back(t1);
     tetra_list.push_back(t2);
 
@@ -271,7 +275,7 @@ void PolyllaFace::repair_phase(const std::vector<int>& polyhedron,
       depth_first_search(&new_polyhedron, &new_polyhedron_tetras, tetra_curr);
       Polyhedron poly;
       poly.faces = new_polyhedron;
-      poly.tetras = new_polyhedron_tetras;
+      poly.tetrahedrons = new_polyhedron_tetras;
       poly.was_repaired = true;
       polyhedral_mesh.push_back(poly);
     }

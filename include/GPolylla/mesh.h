@@ -1,70 +1,61 @@
-#ifndef GPOL_MESH_H
-#define GPOL_MESH_H
+#ifndef INCLUDE_GPOLYLLA_MESH_H_
+#define INCLUDE_GPOLYLLA_MESH_H_
 #include <iostream>
 #include <string>
 #include <vector>
 
 namespace GPolylla {
 
-class Polyhedron {
- public:
-  std::vector<int> tetras;
+struct Polyhedron {
+  std::vector<int> tetrahedrons;
   std::vector<int> faces;
   bool was_repaired;
-
- public:
-  Polyhedron();
 };
 
-class Vertex {
- public:
-  double x, y, z;
-  int id;
+struct Vertex {
+  int idx;
+  double x, y, z;  // coordinates
 
- public:
-  Vertex();
   friend std::ostream& operator<<(std::ostream& os, const Vertex& v);
 };
 
-class Face {
- public:
-  int id;
-  int v1, v2, v3;
-  int n1, n2;
-  std::vector<int> edges;
-  std::vector<int> neighs;
+struct Face {
+  int idx;
+  int v1, v2, v3;           // 3 vertex makes a triangle
+  int ni, nf;               // init tetra to final tetra
+  std::vector<int> edges;   // edges (maybe 3?)
+  std::vector<int> neighs;  // faces neighs (unnecesary?)
   bool is_boundary;
 
- public:
-  Face();
+  // Face();
   friend std::ostream& operator<<(std::ostream& os, const Face& f);
 };
 
-class Edge {
- public:
-  int id;
-  int vi, vf;
-  std::vector<int> faces;
-  int first_tetra;
+struct Edge {
+  // public:
+  int idx;
+  int vi, vf;              // init vertex to final vertex
+  std::vector<int> faces;  // faces
+  // int first_tetra;         // idk
   double length;
 
- public:
-  Edge();
-  bool compare(int v1, int v2) const;
+  // public:
+  // Edge();
+  // bool compare(int v1, int v2) const;
   friend std::ostream& operator<<(std::ostream& os, const Edge& e);
 };
 
-class Tetrahedron {
- public:
-  int id;
+struct Tetrahedron {
+  // public:
+  int idx;
   int v1, v2, v3, v4;
-  std::vector<int> neighs;
   bool is_boundary;
+  std::vector<int> neighs;  // not necessary??
   std::vector<int> faces;
   std::vector<int> edges;
 
- public:
-  Tetrahedron();
+  // public :
+  //  Tetrahedron();
   friend std::ostream& operator<<(std::ostream& os, const Tetrahedron& t);
 };
 
@@ -97,20 +88,21 @@ class TetrahedronMesh {
   void construct_tetrahedral_mesh(const std::string& node_filename,
                                   const std::string& face_filename,
                                   const std::string& ele_filename);
-  void read_node_file(
-      const std::string& filename,
-      std::vector<std::vector<int>>* edges_matrix_vertex,
-      std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
-  void read_face_file(
-      const std::string& filename,
-      std::vector<std::vector<int>>* edges_matrix_vertex,
-      std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
-  void read_ele_file(const std::string& filename);
-  void read_edge_file(
-      std::vector<std::vector<int>>* edges_matrix_vertex,
-      std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
-  void asign_faces_to_tetras();
-  void asign_neighs(Tetrahedron* t);
+
+  // void read_node_file(
+  //     const std::string& filename,
+  //     std::vector<std::vector<int>>* edges_matrix_vertex,
+  //     std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
+  // void read_face_file(
+  //     const std::string& filename,
+  //     std::vector<std::vector<int>>* edges_matrix_vertex,
+  //     std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
+  // void read_ele_file(const std::string& filename);
+  // void read_edge_file(
+  //     std::vector<std::vector<int>>* edges_matrix_vertex,
+  //     std::vector<std::vector<std::vector<int>>>* edges_matrix_faces);
+  // void asign_faces_to_tetras();
+  // void asign_neighs(Tetrahedron* t);
 };
 }  // namespace GPolylla
-#endif
+#endif  // INCLUDE_GPOLYLLA_MESH_H_

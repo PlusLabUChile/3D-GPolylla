@@ -16,8 +16,8 @@ init:
 build:
 	$(CMAKE) --build $(BIN_DIR) -j 10
 
-run: build
-	./$(BIN_DIR)/$(TARGET) data/$(MESH) $(OUT)
+run: 
+	./$(BIN_DIR)/src/$(TARGET) data/$(MESH) $(OUT)
 
 clean:
 	rm -rf $(BUILD_DIR)
