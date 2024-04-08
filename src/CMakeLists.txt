@@ -1,5 +1,5 @@
-add_library(GPolylla "mesh.cpp" "face.cpp")
-target_include_directories(GPolylla PUBLIC ${PROJECT_SOURCE_DIR}/include)
+add_library(${PROJECT_NAME} "mesh.cc")
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
-add_executable(gpol main.cpp)
-target_link_libraries(gpol GPolylla polyscope tetgen)
+# add_executable(${PROJECT_NAME}Run main.cpp)
+# target_link_libraries(${PROJECT_NAME}Run ${PROJECT_NAME} polyscope tetgen)
