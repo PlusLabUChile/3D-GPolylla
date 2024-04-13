@@ -29,7 +29,7 @@ bool gpolylla::Vertex::operator==(const gpolylla::Vertex &other) const {
 
 std::ostream &gpolylla::operator<<(std::ostream &os,
                                    const gpolylla::Vertex &v) {
-  os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+  os << v.idx_ << " at (" << v.x << ", " << v.y << ", " << v.z << ")";
   return os;
 }
 
@@ -56,7 +56,7 @@ struct std::hash<gpolylla::Face> {
   std::size_t operator()(const gpolylla::Face &f) const noexcept {
     std::size_t h = 0;
     for (int i = 0; i < f.vertices.size(); i++) {
-      const auto& v = *f.vertices[i];
+      const auto &v = *f.vertices[i];
       h ^= (std::hash<gpolylla::Vertex>()(v) << i);
     }
     return h;
@@ -66,7 +66,8 @@ bool gpolylla::Face::operator==(const gpolylla::Face &other) const {
   return vertices == other.vertices;
 }
 std::ostream &gpolylla::operator<<(std::ostream &os, const gpolylla::Face &f) {
-  os << *f.vertices[0] << " -- " << *f.vertices[1] << " -- " << *f.vertices[2];
+  os << f.idx_ << " at " << *f.vertices[0] << " -- " << *f.vertices[1] << " -- "
+     << *f.vertices[2];
   return os;
 }
 // TETRAHEDRON
@@ -95,7 +96,7 @@ void read_nodes(const string &filename, vector<Vertex> *vertices) {
     std::string token;
     iss >> token;
     if (token == "#") continue;
-    Vertex node;
+    Vertex node(vertices->size());
     iss >> node.x >> node.y >> node.z;
     vertices->push_back(node);
   }
@@ -138,7 +139,7 @@ void create_faces(vector<Face> *faces, vector<Tetrahedron> *tetras) {
   for (int i = 0; i < tetras->size(); i++) {
     Tetrahedron &tetra = tetras->at(i);
     for (int j = 0; j < 4; j++) {
-      Face f;
+      Face f(map.size());
       f.vertices.push_back(tetra.vertices[j % 4]);
       f.vertices.push_back(tetra.vertices[(j + 1) % 4]);
       f.vertices.push_back(tetra.vertices[(j + 2) % 4]);

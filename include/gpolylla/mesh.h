@@ -10,10 +10,14 @@ struct Face;
 struct Tetrahedron;
 
 struct Vertex {
+  Vertex() = default;
+  explicit Vertex(int idx) : idx_(idx) {}
   double x, y, z;
-
   bool operator==(const Vertex &other) const;
   friend std::ostream &operator<<(std::ostream &os, const Vertex &f);
+
+ private:
+  int idx_;
 };
 
 struct Edge {
@@ -26,19 +30,28 @@ struct Edge {
 };
 
 struct Face {
+  Face() = default;
+  explicit Face(int idx) : idx_(idx) {}
   Tetrahedron *init, *final;
   std::vector<Vertex *> vertices;
 
   bool operator==(const Face &other) const;
   friend std::ostream &operator<<(std::ostream &os, const Face &f);
+ private:
+  int idx_;
 };
 
 struct Tetrahedron {
+  Tetrahedron() = default;
+  explicit Tetrahedron(int idx) : idx_(idx) {}
   std::vector<Vertex *> vertices;
   std::vector<Face *> faces;
   std::vector<Tetrahedron *> neighbours;
 
   bool operator==(const Tetrahedron &other) const;
+
+ private:
+  int idx_;
 };
 
 class TetrahedronMesh {
