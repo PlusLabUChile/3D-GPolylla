@@ -2,6 +2,7 @@
 #define INCLUDE_GPOLYLLA_MESH_H_
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,7 @@ struct Face {
 
   bool operator==(const Face &other) const;
   friend std::ostream &operator<<(std::ostream &os, const Face &f);
+
  private:
   int idx_;
 };
@@ -76,5 +78,40 @@ class TetrahedronMesh {
   std::vector<Tetrahedron> tetrahedrons_;
 };
 }  // namespace gpolylla
+
+namespace std {
+
+template <>
+struct hash<gpolylla::Vertex> {
+  size_t operator()(const gpolylla::Vertex &v) const noexcept {
+    size_t h1 = hash<double>()(v.x);
+    size_t h2 = hash<double>()(v.y);
+    size_t h3 = hash<double>()(v.z);
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
+  }
+};
+
+template <>
+struct hash<gpolylla::Edge> {
+  size_t operator()(const gpolylla::Edge &e) const noexcept {
+    size_t h1 = hash<gpolylla::Vertex>()(*e.initial);
+    size_t h2 = hash<gpolylla::Vertex>()(*e.final);
+    return h1 ^ (h2 << 1);
+  }
+};
+
+template <>
+struct hash<gpolylla::Face> {
+  size_t operator()(const gpolylla::Face &f) const noexcept {
+    size_t h = 0;
+    for (int i = 0; i < f.vertices.size(); i++) {
+      const auto &v = *f.vertices[i];
+      h ^= hash<gpolylla::Vertex>()(v);
+    }
+    return h;
+  }
+};
+
+}  // namespace std
 
 #endif  // INCLUDE_GPOLYLLA_MESH_H_

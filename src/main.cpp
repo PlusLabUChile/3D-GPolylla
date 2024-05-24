@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
       input_mesh + ".node", input_mesh + ".face", input_mesh + ".ele");
   GPolylla::PolyllaFace pmesh(mesh);
   auto end = std::chrono::high_resolution_clock::now();
-  auto delta1 = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+  auto delta1 = std::chrono::duration_cast<std::chrono::seconds>(end - start);                                                      
   cout << "Total time: " << delta1.count() << " secs" << endl;
   mesh->display_info();
   vector<array<double, 3>> pol_colors(pmesh.num_polyhedra());

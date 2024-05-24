@@ -4,6 +4,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -13,15 +14,6 @@ using std::string;
 using std::vector;
 
 // VERTEX
-template <>
-struct std::hash<gpolylla::Vertex> {
-  std::size_t operator()(const gpolylla::Vertex &v) const noexcept {
-    std::size_t h1 = std::hash<double>()(v.x);
-    std::size_t h2 = std::hash<double>()(v.y);
-    std::size_t h3 = std::hash<double>()(v.z);
-    return h1 ^ (h2 << 1) ^ (h3 << 2);
-  }
-};
 
 bool gpolylla::Vertex::operator==(const gpolylla::Vertex &other) const {
   return x == other.x && y == other.y && z == other.z;
@@ -34,14 +26,6 @@ std::ostream &gpolylla::operator<<(std::ostream &os,
 }
 
 // EDGE
-template <>
-struct std::hash<gpolylla::Edge> {
-  std::size_t operator()(const gpolylla::Edge &e) const noexcept {
-    std::size_t h1 = std::hash<gpolylla::Vertex>()(*e.initial);
-    std::size_t h2 = std::hash<gpolylla::Vertex>()(*e.final);
-    return h1 ^ (h2 << 1);
-  }
-};
 
 bool gpolylla::Edge::operator==(const gpolylla::Edge &other) const {
   return initial == other.initial && final == other.final;
@@ -51,17 +35,6 @@ std::ostream &gpolylla::operator<<(std::ostream &os, const gpolylla::Edge &e) {
   return os;
 }
 // FACE
-template <>
-struct std::hash<gpolylla::Face> {
-  std::size_t operator()(const gpolylla::Face &f) const noexcept {
-    std::size_t h = 0;
-    for (int i = 0; i < f.vertices.size(); i++) {
-      const auto &v = *f.vertices[i];
-      h ^= (std::hash<gpolylla::Vertex>()(v) << i);
-    }
-    return h;
-  }
-};
 bool gpolylla::Face::operator==(const gpolylla::Face &other) const {
   return vertices == other.vertices;
 }
@@ -155,8 +128,16 @@ void create_faces(vector<Face> *faces, vector<Tetrahedron> *tetras) {
     if (pair.second.size() != 2) {
       std::cerr << f << " without 2 tetrahedrons (" << pair.second.size() << ")"
                 << std::endl;
+      // std::cerr << "Total faces: " << map.size() << std::endl;
+      // for (auto &pair : map) {
+      //   std::cerr << pair.first << ": ";
+      //   for (auto &idx: pair.second) {
+      //     std::cerr << idx << " ";
+      //   }
+      //   std::cerr << std::endl;
+      // }
       exit(2);
-      // 85 0 92
+      // 32 29 58
     }
     int init = pair.second[0];
     int final = pair.second[1];
