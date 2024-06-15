@@ -1,0 +1,21 @@
+/Users/vgonzalez/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/Users/vgonzalez/Applications/CLion.app/Contents/bin/ninja/mac/aarch64/ninja -G Ninja -S "/Volumes/Dev/Universidad/Trabajo de Tesis I/3D-GPolylla" -B "/Volumes/Dev/Universidad/Trabajo de Tesis I/3D-GPolylla/cmake-build-debug"
+-- Using Cocoa for window creation
+Polyscope backend openGL3_glfw enabled
+Polyscope backend openGL_mock enabled
+CMake Deprecation Warning at extern/tetgen/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.5 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value or use a ...<max> suffix to tell
+  CMake that the project does not need compatibility with older versions.
+
+
+Building GPolylla
+Including all tests
+CMake Error at test/CMakeLists.txt:4 (target_link_libraries):
+  Target "3D-GPolylla" of type EXECUTABLE may not be linked into another
+  target.  One may link only to INTERFACE, OBJECT, STATIC or SHARED
+  libraries, or to executables with the ENABLE_EXPORTS property set.
+
+
+-- Configuring incomplete, errors occurred!
