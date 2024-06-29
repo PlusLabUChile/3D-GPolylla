@@ -14,7 +14,7 @@ init:
 	@cp $(BIN_DIR)/compile_commands.json .
 build:
 	cd $(BIN_DIR) && make
-test:
+test: build
 	@GTEST_COLOR=1 ctest --test-dir $(BIN_DIR) --output-on-failure
 clean:
 	cd $(BIN_DIR) && make clean
