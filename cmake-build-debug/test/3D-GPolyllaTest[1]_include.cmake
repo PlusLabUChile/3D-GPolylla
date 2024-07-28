@@ -1,5 +1,0 @@
-if(EXISTS "/Volumes/Dev/Universidad/Trabajo de Tesis I/3D-GPolylla/cmake-build-debug/test/3D-GPolyllaTest[1]_tests.cmake")
-  include("/Volumes/Dev/Universidad/Trabajo de Tesis I/3D-GPolylla/cmake-build-debug/test/3D-GPolyllaTest[1]_tests.cmake")
-else()
-  add_test(3D-GPolyllaTest_NOT_BUILT 3D-GPolyllaTest_NOT_BUILT)
-endif()

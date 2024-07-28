@@ -20,3 +20,5 @@ clean:
 	cd $(BIN_DIR) && make clean
 watch: init
 	@find $(WDIRS) | entr -s "make build"
+
+run: test

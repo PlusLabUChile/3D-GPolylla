@@ -1,10 +1,11 @@
-
+file(GLOB GPOLYLLA_SOURCES mesh/*.cpp builder/*.cpp polylla/*.cpp)
 if(GPOLYLLA_LIB)
   message("Building GPolylla as library")
-  add_library(${PROJECT_NAME} "mesh.cpp")
+  add_library(${PROJECT_NAME} ${GPOLYLLA_SOURCES})
+  target_compile_definitions(${PROJECT_NAME} PRIVATE GPOLYLLA_LIB)
 else()
   message("Building GPolylla")
-  add_executable(${PROJECT_NAME} "mesh.cpp" "main.cpp")
+  add_executable(${PROJECT_NAME} ${GPOLYLLA_SOURCES})
 endif()
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
