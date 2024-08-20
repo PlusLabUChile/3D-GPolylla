@@ -1,4 +1,4 @@
-file(GLOB GPOLYLLA_SOURCES mesh/*.cpp builder/*.cpp polylla/*.cpp)
+file(GLOB GPOLYLLA_SOURCES mesh/*.cpp io/*.cpp algo/*.cpp)
 if(GPOLYLLA_LIB)
   message("Building GPolylla as library")
   add_library(${PROJECT_NAME} ${GPOLYLLA_SOURCES})
