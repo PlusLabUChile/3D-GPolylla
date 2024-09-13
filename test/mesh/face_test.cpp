@@ -1,58 +1,34 @@
 #include <gpolylla/mesh/face.h>
-
 #include <gtest/gtest.h>
 
-#include <unordered_map>
 
 namespace gpolylla {
-
-class FaceTest : public ::testing::Test {
+class FaceTetraMeshTest : public ::testing::Test {
  protected:
-  FaceTest(): v0(0), v1(1), v2(2), v3(3), v4(4), v5(5), v6(6), f0(0), f1(1) {
-    f0.vertices[0] = &v0;
-    f0.vertices[1] = &v1;
-    f0.vertices[2] = &v2;
-    f1.vertices[0] = &v3;
-    f1.vertices[1] = &v4;
-    f1.vertices[2] = &v5;
-  }
+  FaceTetraMeshTest() {
+    tmesh.vertices = {{0, 0.0, 0.0, 0.0}, {1, 0.0, 0.0, 1.0},
+                      {2, 1.0, 0.0, 1.0}, {3, 1.0, 0.0, 0.0},
+                      {4, 0.0, 1.0, 0.0}, {5, 0.0, 1.0, 1.0},
+                      {6, 1.0, 1.0, 1.0}, {7, 1.0, 1.0, 0.0}};
 
-  Vertex v0, v1, v2, v3, v4, v5, v6;
-  Face f0, f1;
+    tmesh.faces = {{0, 0, 1, 2},  {1, 2, 3, 0},  {2, 2, 3, 7},  {3, 7, 6, 2},
+                   {4, 2, 1, 5},  {5, 5, 6, 2},  {6, 5, 6, 7},  {7, 7, 4, 5},
+                   {8, 0, 4, 7},  {9, 7, 3, 0},  {10, 0, 1, 5}, {11, 5, 4, 0},
+                   {12, 0, 5, 2}, {13, 0, 5, 7}, {14, 5, 2, 7}, {15, 0, 7, 2}};
+
+    tmesh.tetras = {
+        {0, 0, 1, 2, 5}, {1, 0, 2, 3, 7}, {2, 2, 5, 6, 7},
+        {3, 5, 7, 0, 4}, {4, 5, 2, 0, 7},
+    };
+  };
+  TetraMesh tmesh;
 };
 
-TEST_F(FaceTest, CreationTest) {
-  ASSERT_EQ(*f0.vertices[0], v0);
-  ASSERT_EQ(*f0.vertices[1], v1);
-  ASSERT_EQ(*f0.vertices[2], v2);
+
+TEST_F(FaceTetraMeshTest, CreationTest) {
+  FaceTetraMesh fmesh(tmesh);
+  // std::cout << fmesh << std::endl;
+  // std::cout << tmesh << std::endl;
+  // ASSERT_TRUE(false);
 }
-
-
-TEST_F(FaceTest, OperatorTest) {
-  Face dummy(0);
-  dummy.vertices[0] = &v0;
-  dummy.vertices[1] = &v1;
-  dummy.vertices[2] = &v2;
-  ASSERT_TRUE(f0 == dummy);
-  ASSERT_FALSE(f0 == f1);
-}
-
-TEST_F(FaceTest, CopyTest) {
-  Face dummy(f0);
-  ASSERT_EQ(f0, dummy);
-}
-
-TEST_F(FaceTest, HashTest) {
-  std::unordered_map<Face, int, Face::Hash> map;
-  map[f0] = 100;
-  map[f1] = 200;
-  ASSERT_EQ(map[f0], 100);
-  ASSERT_EQ(map[f1], 200);
-
-  Face dummy(f0);
-  ASSERT_EQ(map[f0], map[dummy]);
-  ASSERT_NE(map[f0], map[f1]);
-}
-}
-
-
+}  // namespace gpolylla

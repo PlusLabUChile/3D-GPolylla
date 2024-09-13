@@ -1,42 +1,45 @@
-#ifndef _GPOLYLLA_FACE_H_
-#define _GPOLYLLA_FACE_H_
-#include <gpolylla/mesh/edge.h>
-#include <gpolylla/mesh/vertex.h>
-
-#include <iostream>
+#ifndef _GPOLYLLA_MESH_FACE_H_
+#define _GPOLYLLA_MESH_FACE_H_
+#include <gpolylla/mesh/basic.h>
 #include <array>
 
 namespace gpolylla {
-class Face {
- public:
-  std::array<Vertex*, 3> vertices;
 
-  Face(int idx);
-  Face(const Face& f);
-
-  bool operator==(const Face&) const;
-
-  struct Hash {
-    std::size_t operator()(const Face& f) const;
-  };
-
-  friend std::ostream& operator<<(std::ostream&, const Face&);
-
-  // Tetrahedron *initial, *final;  // Tetras
-  // std::vector<Edge*> edges;
-  // std::vector<int> neighs;  // Tetras (captured in initial and final)
-  //
-  // inline bool isBoundary() const {
-  //   return initial == nullptr || final == nullptr;
-  // }
-  //
-  // float area;
-
-
- private:
-  const int idx;
+class FaceVertex: public Vertex {
+public:
+  FaceVertex(const Vertex&);
 };
 
+class FaceFace: public Face {
+public:
+  std::array<int, 2> tetras;
+  int fittest;
+  FaceFace(const Face&);
+
+  friend std::ostream& operator<<(std::ostream&, const FaceFace&);
+};
+
+class FaceTetrahedron: public Tetrahedron {
+public:
+  int fittest;
+  std::array<int, 4> faces;
+  FaceTetrahedron(const Tetrahedron&);
+
+  friend std::ostream& operator<<(std::ostream& out, const FaceTetrahedron& t);
+};
+
+class FaceTetraMesh {
+public:
+  std::vector<FaceVertex> vertices;
+  // std::vector<Edge> edges;
+  std::vector<FaceFace> faces;
+  std::vector<FaceTetrahedron> tetras;
+
+  FaceTetraMesh() = default;
+  FaceTetraMesh(const TetraMesh& m);
+
+  friend std::ostream& operator<<(std::ostream& out, const FaceTetraMesh& m);
+};
 }  // namespace gpolylla
 
-#endif  // _GPOLYLLA_FACE_H_
+#endif  // _GPOLYLLA_MESH_FACE_H_

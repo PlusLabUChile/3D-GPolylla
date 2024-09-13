@@ -49,7 +49,6 @@ TEST_F(VertexTest, HashTest) {
   ASSERT_EQ(map[v0], map[dummy]);
   ASSERT_NE(map[v0], map[v1]);
 }
-
 }
 
 

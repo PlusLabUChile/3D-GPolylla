@@ -7,6 +7,7 @@ else()
   message("Building GPolylla")
   add_executable(${PROJECT_NAME} ${GPOLYLLA_SOURCES})
 endif()
+target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # add_executable(${PROJECT_NAME}Run main.cpp)

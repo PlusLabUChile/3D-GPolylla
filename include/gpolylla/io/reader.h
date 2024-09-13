@@ -1,29 +1,27 @@
-// #ifndef _GPOLYLLA_IO_READER_H_
-// #define _GPOLYLLA_IO_READER_H_
-//
-// #include <gpolylla/mesh/mesh.h>
-//
-// #include <string>
+#ifndef _GPOLYLLA_IO_READER_H_
+#define _GPOLYLLA_IO_READER_H_
+
+#include <gpolylla/mesh/basic.h>
+
+#include <string>
 // #include <unordered_map>
 // #include <vector>
 //
-// namespace gpolylla {
+namespace gpolylla {
 // class Mesh;
-// class Reader {
-//  public:
-//   virtual Mesh build();
-// };
 //
-// class TetgenBuilder : public Reader {
-//  public:
-//   TetgenBuilder(const std::string& basename);
-//   inline Mesh build() override { return concrete_build(); };
-//   TetraMesh concrete_build();
+class TetgenReader {
+ public:
+  void set_basename(const std::string& basename);
+  TetraMesh build();
 //
-//  private:
-//   bool load_node(const std::string& filename);
-//   bool load_face(const std::string& filename);
-//   bool load_ele(const std::string& filename);
+ private:
+  int load_node(const std::string& filename);
+  int load_ele(const std::string& filename);
+  int load_edge(const std::string& filename);
+  int load_face(const std::string& filename);
+  int build_faces();
+  int build_edges();
 //   bool apply_connectivity();
 //
 //   struct FaceKey {
@@ -57,7 +55,9 @@
 //   TetraMesh _mesh;
 //   FaceToTetraMap _fMap;
 //   EdgeToFaceMap _eMap;
-//   std::string _basename;
-// };
-// }  // namespace gpolylla
-// #endif  // _GPOLYLLA_BUILDER_H_
+private:
+  TetraMesh _mesh;
+  std::string _basename;
+};
+}  // namespace gpolylla
+#endif  // _GPOLYLLA_BUILDER_H_

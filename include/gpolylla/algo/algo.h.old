@@ -1,0 +1,31 @@
+#ifndef _GPOLYLLA_ALGO_POLYLLA_H_
+#define _GPOLYLLA_ALGO_POLYLLA_H_
+#include <gpolylla/mesh/basic.h>
+
+namespace gpolylla {
+template <class Primitive, class Criteria>
+class Algorithm {
+public:
+    virtual void label() {
+
+
+    }
+    virtual void travel();
+    virtual void repair();
+
+    PolyMesh operator()(const TetraMesh& m);
+
+private:
+    Criteria c;
+    PolyMesh m;
+    std::vector<Primitive*> seeds;
+
+};
+}
+
+
+// class Polylla : Algorithm<Triangle, F> {
+//
+// };
+
+#endif  // _GPOLYLLA_ALGO_POLYLLA_H_

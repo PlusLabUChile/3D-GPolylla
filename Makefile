@@ -8,10 +8,13 @@ WDIRS=src/ test/ include/
 
 .PHONY: build init clean test run
 
+all: run
+
 init:
 	@mkdir -p $(BUILD_DIR)/
 	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=1 -DBUILD_TESTING=1 -S . -B $(BIN_DIR)/ 
 	@cp $(BIN_DIR)/compile_commands.json .
+
 build:
 	cd $(BIN_DIR) && make
 test: build
@@ -22,3 +25,4 @@ watch: init
 	@find $(WDIRS) | entr -s "make build"
 
 run: test
+
