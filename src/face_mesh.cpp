@@ -1,11 +1,10 @@
-#include <gpolylla/mesh/face.h>
+#include <gpolylla/mesh.h>
 
 #include <algorithm>
 #include <ostream>
 #include <unordered_map>
 #include <vector>
 
-#include "gpolylla/mesh/basic.h"
 
 namespace gpolylla {
 using std::ostream;
@@ -98,7 +97,7 @@ FaceTetraMesh::FaceTetraMesh(const TetraMesh& m) {
   }
 };
 
-ostream& operator<<(ostream& out, const FaceTetraMesh& m) {
+ostream& operator<<(ostream& out, const CavityTetraMesh& m) {
   out << "FACEMESH\n"
       << "    Total vertices: " << m.vertices.size() << "\n"
       << "    Total edges: " << m.vertices.size() << "\n"

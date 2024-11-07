@@ -12,16 +12,16 @@ namespace gpolylla {
 //
 class TetgenReader {
  public:
-  void set_basename(const std::string& basename);
+  void setBasename(const std::string& basename);
   TetraMesh build();
 //
  private:
-  int load_node(const std::string& filename);
-  int load_ele(const std::string& filename);
-  int load_edge(const std::string& filename);
-  int load_face(const std::string& filename);
-  int build_faces();
-  int build_edges();
+  int loadNode(const std::string& filename);
+  int loadEle(const std::string& filename);
+  int loadEdge(const std::string& filename);
+  int loadFace(const std::string& filename);
+  int buildFaces();
+  int buildEdges();
 //   bool apply_connectivity();
 //
 //   struct FaceKey {

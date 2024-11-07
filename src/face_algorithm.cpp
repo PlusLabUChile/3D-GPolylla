@@ -1,13 +1,12 @@
-#include <gpolylla/algo/face.h>
-#include <gpolylla/mesh/face.h>
+#include <gpolylla/algo.h>
+#include <gpolylla/mesh.h>
+#include <gpolylla/utils.h>
 
 #include <Eigen/Dense>
 #include <cstdlib>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
-
-#include "gpolylla/mesh/basic.h"
 
 namespace gpolylla {
 using Eigen::Vector3d;
@@ -21,16 +20,16 @@ PolyMesh FaceAlgorithm::operator()(const TetraMesh& m) {
   auto seeds = getSeeds();
   visited = std::vector<bool>(mesh.tetras.size(), false);
 
-  for (int fi : seeds) {
+  for (int ti : seeds) {
     std::vector<int> polyTetras;
-    depthFirstSearch(mesh.faces[fi].tetras[0], &polyTetras);
+    depthFirstSearch(ti, &polyTetras);
 
     // construir el poliedro
 
     unordered_set<int> uniVertex;
 
-    for (int ti : polyTetras) {
-      for (int vi : mesh.tetras[ti].vertices) {
+    for (int pti : polyTetras) {
+      for (int vi : mesh.tetras[pti].vertices) {
         uniVertex.insert(vi);
       }
     }
@@ -42,11 +41,15 @@ PolyMesh FaceAlgorithm::operator()(const TetraMesh& m) {
       polyVert.push_back(vi);
     }
 
-    ans.cells.emplace_back(ans.cells.size(), polyVert);
+    Polyhedron poly(ans.cells.size(), polyVert);
+    poly.tetras = polyTetras;  // cambiar
+    ans.cells.push_back(poly);
   }
-  
+
   ans.vertices = m.vertices;
+  ans.faces = m.faces;
   ans.edges = m.edges;
+  ans.tetras = m.tetras;
   return ans;
 };
 
@@ -78,8 +81,10 @@ vector<int> FaceAlgorithm::getSeeds() {
     }
 
     // If t1 is -1, check if f is the fittest of t0
-    if (face.tetras[1] == -1 && mesh.tetras[face.tetras[0]].fittest == f) {
-      seedFace.push_back(f);
+    if (face.tetras[1] == -1) {
+      if (mesh.tetras[face.tetras[0]].fittest == f) {
+        seedFace.push_back(face.tetras[0]);
+      }
       continue;
     }
     // If  not -1, check if f its the fittest on both tetras
@@ -114,10 +119,10 @@ void FaceAlgorithm::depthFirstSearch(int ti, vector<int>* polyhedron) {
 
 double FaceAlgorithm::Criteria::value(int fi, const FaceTetraMesh& mesh) {
   auto& tri = mesh.faces[fi];
-  auto v0 = mesh.vertices[tri.vertices[0]].asVector();
-  auto v1 = mesh.vertices[tri.vertices[1]].asVector();
-  auto v2 = mesh.vertices[tri.vertices[2]].asVector();
-  return (v1 - v0).cross(v2 - v0).norm() * 0.5;
+  Vector3d v0 = mesh.vertices[tri.vertices[0]];
+  Vector3d v1 = mesh.vertices[tri.vertices[1]];
+  Vector3d v2 = mesh.vertices[tri.vertices[2]];
+  return area(v0, v1, v2);
 }
 
 }  // namespace gpolylla

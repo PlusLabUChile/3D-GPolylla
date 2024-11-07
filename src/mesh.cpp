@@ -1,5 +1,4 @@
-#include <gpolylla/mesh/basic.h>
-#include "Eigen/src/Core/Matrix.h"
+#include <gpolylla/mesh.h>
 
 namespace gpolylla {
 using std::ostream;
@@ -13,7 +12,7 @@ Vertex::Vertex(int idx, float x, float y, float z)
 
 Vertex::Vertex(const Vertex& v) : idx(v.idx), x(v.x), y(v.y), z(v.z) {}
 
-Vector3d Vertex::asVector() const {
+Vertex::operator Vector3d() const {
   return Vector3d(x, y, z);
 }
 
@@ -117,6 +116,8 @@ ostream& operator<<(ostream& out, const Tetrahedron& t) {
 ostream& operator<<(ostream& out, const Polyhedron& p) {
   out << "(Polyhedron " << p.idx << ",";
   for (auto& vi : p.vertices) out << " " << vi;
+  out << ", tetras:";
+  for (auto& ti : p.tetras) out << " " << ti;
   out << ")";
   return out;
 }

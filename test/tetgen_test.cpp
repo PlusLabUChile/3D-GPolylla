@@ -1,4 +1,4 @@
-#include <gpolylla/io/reader.h>
+#include <gpolylla/io.h>
 #include <gtest/gtest.h>
 
 namespace gpolylla {
@@ -8,7 +8,7 @@ class TetgenTest : public ::testing::Test {
 };
 
 TEST_F(TetgenTest, ReadMinimalTest) { 
-  reader.set_basename(DATA_DIR "minimal");
+  reader.setBasename(DATA_DIR "minimal");
   TetraMesh m = reader.build(); 
   // std::cout << m << std::endl;
   ASSERT_EQ(m.vertices.size(), 8);

@@ -14,7 +14,7 @@ class FaceAlgorithm {
   };
 
  private:
-  void depthFirstSearch(int face, std::vector<int>* polyhedron);
+  void depthFirstSearch(int tetra, std::vector<int>* polyhedron);
   void calculateFittest(const std::vector<Face>& faces);
   std::vector<int> getSeeds();
   FaceAlgorithm::Criteria c;

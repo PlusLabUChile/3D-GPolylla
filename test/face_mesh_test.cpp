@@ -1,4 +1,4 @@
-#include <gpolylla/mesh/face.h>
+#include <gpolylla/mesh.h>
 #include <gtest/gtest.h>
 
 

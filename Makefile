@@ -2,27 +2,38 @@ CMAKE=cmake
 MAKE=make
 BUILD_TYPE=Debug
 BUILD_DIR=build
-BIN_DIR:=$(BUILD_DIR)/$(BUILD_TYPE)
-BUILD=build
-WDIRS=src/ test/ include/
+BIN=$(BUILD_DIR)/$(BUILD_TYPE)
 
 .PHONY: build init clean test run
 
 all: run
 
-init:
-	@mkdir -p $(BUILD_DIR)/
-	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=1 -DBUILD_TESTING=1 -S . -B $(BIN_DIR)/ 
-	@cp $(BIN_DIR)/compile_commands.json .
+3D-GPolyllaTest.init:
+	@mkdir -p $(BIN)/
+	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\) FOR LIBRARY
+	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=1 -DBUILD_TESTING=1 -S . -B $(BIN)/ 
+	@cp $(BIN)/compile_commands.json .
 
-build:
-	cd $(BIN_DIR) && make
-test: build
-	@GTEST_COLOR=1 ctest --test-dir $(BIN_DIR) --output-on-failure
+3D-GPolylla.init:
+	@mkdir -p $(BIN)/
+	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\) FOR EXECUTABLE
+	$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=0 -DBUILD_TESTING=0 -S . -B $(BIN)/ 
+	@cp $(BIN)/compile_commands.json .
+
+%.build: %.init
+	@echo ====================================
+	@echo BUILDING TARGET: $*
+	@$(CMAKE) --build $(BIN)/ -j 10 --target $*
+
+test: 3D-GPolyllaTest.build
+	@echo ====================================
+	@echo RUNNING TESTS
+	@ctest --test-dir $(BIN) --output-on-failure
+
 clean:
-	cd $(BIN_DIR) && make clean
-watch: init
-	@find $(WDIRS) | entr -s "make build"
+	@$(CMAKE) --build $(BIN)/ -j 10 --target clean
 
-run: test
-
+run: 3D-GPolylla.build
+	@echo ====================================
+	@echo RUNNING TARGET
+	./$(BIN)/src/3D-GPolylla data/1000points.1 minimal

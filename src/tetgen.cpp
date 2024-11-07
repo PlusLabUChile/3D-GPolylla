@@ -1,4 +1,4 @@
-#include <gpolylla/io/reader.h>
+#include <gpolylla/io.h>
 
 #include <algorithm>
 #include <fstream>
@@ -13,7 +13,7 @@ using std::string;
 
 // TetgenReader::TetgenReader(const string& basename) : _basename(basename) {}
 
-void TetgenReader::set_basename(const string& basename) {
+void TetgenReader::setBasename(const string& basename) {
   _basename = basename;
   _mesh = TetraMesh();
 }
@@ -22,9 +22,9 @@ TetraMesh TetgenReader::build() {
   int ok = 1;
   cout << "Constructing mesh from files...\n";
   cout << "Reading vertex file (.node)...\n";
-  ok &= load_node(_basename + ".node");
+  ok &= loadNode(_basename + ".node");
   cout << "Reading tetrahedron file (.ele)...\n";
-  ok &= load_ele(_basename + ".ele");
+  ok &= loadEle(_basename + ".ele");
 
   if (!ok) {
     cerr << ".ele and .node files are mandatory\n";
@@ -32,19 +32,19 @@ TetraMesh TetgenReader::build() {
   }
 
   cout << "Reading edge file (.edge)...\n";
-  ok = load_edge(_basename + ".edge");
+  ok = loadEdge(_basename + ".edge");
   if (!ok) {
     cout << "File not found!\n";
     cout << "Building edges from data...\n";
-    ok = build_edges();
+    ok = buildEdges();
   }
 
   cout << "Reading face file (.face)...\n";
-  ok = load_face(_basename + ".face");
+  ok = loadFace(_basename + ".face");
   if (!ok) {
     cout << "File not found!\n";
     cout << "Building faces from data...\n";
-    ok = build_faces();
+    ok = buildFaces();
   }
 
   if (!ok) {
@@ -55,7 +55,7 @@ TetraMesh TetgenReader::build() {
   return _mesh;
 }
 
-int TetgenReader::load_node(const string& filename) {
+int TetgenReader::loadNode(const string& filename) {
   std::ifstream nodeFile(filename);
   if (!nodeFile.is_open()) {
     cerr << "Unable to open file: " << filename << endl;
@@ -84,7 +84,7 @@ int TetgenReader::load_node(const string& filename) {
   return 1;
 }
 
-int TetgenReader::load_ele(const string& filename) {
+int TetgenReader::loadEle(const string& filename) {
   std::ifstream eleFile(filename);
   if (!eleFile.is_open()) {
     cerr << "Unable to open file: " << filename << endl;
@@ -116,7 +116,7 @@ int TetgenReader::load_ele(const string& filename) {
   return 1;
 }
 
-int TetgenReader::load_edge(const string& filename) {
+int TetgenReader::loadEdge(const string& filename) {
   std::ifstream edgeFile(filename);
   if (!edgeFile.is_open()) {
     cerr << "Unable to open file: " << filename << endl;
@@ -146,7 +146,7 @@ int TetgenReader::load_edge(const string& filename) {
   return 1;
 }
 
-int TetgenReader::load_face(const string& filename) {
+int TetgenReader::loadFace(const string& filename) {
   std::ifstream faceFile(filename);
   if (!faceFile.is_open()) {
     cerr << "Unable to open file: " << filename << endl;
@@ -200,7 +200,7 @@ struct FaceCompare {
   }
 };
 
-int TetgenReader::build_edges() {
+int TetgenReader::buildEdges() {
   // create edges
   std::unordered_set<Edge, Edge::Hash> uniqueEdges;
 
@@ -243,7 +243,7 @@ int TetgenReader::build_edges() {
   return 1;
 }
 
-int TetgenReader::build_faces() {
+int TetgenReader::buildFaces() {
   // create unique edges
   std::unordered_set<Face, Face::Hash> uniqueFaces;
 
