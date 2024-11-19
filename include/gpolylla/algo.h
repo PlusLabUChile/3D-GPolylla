@@ -1,6 +1,7 @@
 #ifndef _GPOLYLLA_ALGO_H_
 #define _GPOLYLLA_ALGO_H_
 #include <gpolylla/mesh.h>
+#include <gpolylla/utils.h>
 
 #include <Eigen/Dense>
 
@@ -29,7 +30,7 @@ class CavityAlgorithm {
 
   class Criteria {
    public:
-    Eigen::Vector3d value(int ti, const CavityTetraMesh& mesh);
+    Sphere value(int ti, const CavityTetraMesh& mesh);
   };
 
  private:
@@ -39,8 +40,7 @@ class CavityAlgorithm {
   Criteria c;
   CavityTetraMesh mesh;
   std::vector<bool> visited;
-  double currentSquaredNorm;
-  Eigen::Vector3d* currentFittest;
+  CavityTetrahedron* current;
 };
 
 }  // namespace gpolylla

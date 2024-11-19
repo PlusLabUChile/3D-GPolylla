@@ -5,9 +5,11 @@
 namespace gpolylla {
 using namespace Eigen;
 
+constexpr double TOLERANCE = 0.00000001;
+
 // src: https://mathworld.wolfram.com/Circumsphere.html
-Eigen::Vector3d circumsphere(Eigen::Vector3d p0, Eigen::Vector3d p1,
-                             Eigen::Vector3d p2, Eigen::Vector3d p3) {
+Sphere circumsphere(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
+                    const Eigen::Vector3d& p2, const Eigen::Vector3d& p3) {
   using namespace Eigen;
   Matrix4d A, X, Y, Z;
 
@@ -28,8 +30,14 @@ Eigen::Vector3d circumsphere(Eigen::Vector3d p0, Eigen::Vector3d p1,
   double Dy = -Y.determinant();
   double Dz = Z.determinant();
 
-  return Vector3d(Dx / (2 * a), Dy / (2 * a), Dz / (2 * a));
+  Sphere sphere;
+  sphere.center = Vector3d(Dx / (2 * a), Dy / (2 * a), Dz / (2 * a));
+  sphere.radius = (sphere.center - p0).norm();
+  return sphere;
 }
 
+bool Sphere::isIn(const Vector3d& point) const {
+  return (center - point).norm() < radius + TOLERANCE;
+}
 
 }  // namespace gpolylla

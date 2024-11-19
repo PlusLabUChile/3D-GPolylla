@@ -41,7 +41,7 @@ protected:
 
 TEST_F(CavityAlgorithmTest, Foo) {
   std::string path(DATA_DIR);
-  reader.setBasename(path.append("3D_100.1"));
+  reader.setBasename(path.append("socket.1"));
   auto mesh = reader.build();
   auto pMes = algo(mesh);
 

@@ -3,6 +3,7 @@ MAKE=make
 BUILD_TYPE=Debug
 BUILD_DIR=build
 BIN=$(BUILD_DIR)/$(BUILD_TYPE)
+MESH=socket.1
 
 .PHONY: build init clean test run
 
@@ -36,4 +37,4 @@ clean:
 run: 3D-GPolylla.build
 	@echo ====================================
 	@echo RUNNING TARGET
-	./$(BIN)/src/3D-GPolylla data/1000points.1 minimal
+	./$(BIN)/src/3D-GPolylla data/$(MESH) minimal

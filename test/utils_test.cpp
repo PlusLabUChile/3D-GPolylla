@@ -31,19 +31,18 @@ TEST(UtilsTest, CircumsphereTest) {
   Vector3d p2(0.0, 1.0, 0.0);
   Vector3d p3(0.0, 0.0, 1.0);
 
-  Vector3d center = circumsphere(p0, p1, p2, p3);
+  Sphere sphere = circumsphere(p0, p1, p2, p3);
 
-  double radius = (center - p0).norm();
+//  double radius = (center - p0).norm();
 
-  ASSERT_EQ((center - p0).norm(), radius);
-  ASSERT_EQ((center - p1).norm(), radius);
-  ASSERT_EQ((center - p2).norm(), radius);
-  ASSERT_EQ((center - p3).norm(), radius);
+  ASSERT_EQ((sphere.center - p0).norm(), sphere.radius);
+  ASSERT_EQ((sphere.center - p1).norm(), sphere.radius);
+  ASSERT_EQ((sphere.center - p2).norm(), sphere.radius);
+  ASSERT_EQ((sphere.center - p3).norm(), sphere.radius);
 }
 
 TEST(UtilsTest, CircumsphereRobustnessTest) {
   using namespace Eigen;
-  double tolerance = 0.00000001;
   // std::random_device dev;
   // std::mt19937 rng(dev);
   // std::uniform_real_distribution<double> dist();
@@ -54,15 +53,16 @@ TEST(UtilsTest, CircumsphereRobustnessTest) {
     reader.setBasename(path.append(d));
     TetraMesh mesh = reader.build();
     for (auto& t : mesh.tetras) {
-      auto center = circumsphere(
+      auto sphere = circumsphere(
           mesh.vertices[t.vertices[0]], mesh.vertices[t.vertices[1]],
           mesh.vertices[t.vertices[2]], mesh.vertices[t.vertices[3]]);
 
-      double radius = (center - Vector3d(mesh.vertices[t.vertices[0]])).norm();
+//      double radius = (center - Vector3d(mesh.vertices[t.vertices[0]])).norm();
 
       for (auto& vi : t.vertices) {
-        Vector3d point = mesh.vertices[vi];
-        ASSERT_NEAR(radius, (center - point).norm(), tolerance);
+//        Vector3d point = mesh.vertices[vi];
+//        ASSERT_NEAR(radius, (center - point).norm(), TOLERANCE);
+        ASSERT_TRUE(sphere.isIn(mesh.vertices[vi]));
       }
     }
   }

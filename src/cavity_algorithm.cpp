@@ -7,13 +7,12 @@
 
 #include "Eigen/Core"
 
-#define EPSILON 0.001
-
 namespace gpolylla {
 using Eigen::Vector3d;
 using std::unordered_set;
 using std::vector;
 
+// First implementation
 PolyMesh CavityAlgorithm::operator()(const TetraMesh& m) {
   PolyMesh ans;
   mesh = CavityTetraMesh(m);
@@ -25,9 +24,9 @@ PolyMesh CavityAlgorithm::operator()(const TetraMesh& m) {
     if (visited[ti]) continue;
     std::vector<int> polyTetras;
     auto& currentTetra = mesh.tetras[ti];
-    currentFittest = &currentTetra.fittest;
-    Vector3d pointAsVector = mesh.vertices[currentTetra.vertices[0]];
-    currentSquaredNorm = (*currentFittest - pointAsVector).squaredNorm();
+    current = &currentTetra;
+    //     Vector3d pointAsVector = mesh.vertices[currentTetra.vertices[0]];
+    //     currentSquaredNorm = (*currentFittest - pointAsVector).squaredNorm();
     depthFirstSearch(ti, &polyTetras);
 
     // construir el poliedro
@@ -58,6 +57,7 @@ PolyMesh CavityAlgorithm::operator()(const TetraMesh& m) {
   return ans;
 }
 
+// First impl
 void CavityAlgorithm::depthFirstSearch(int ti, vector<int>* polyhedron) {
   // int ti = mesh.faces[fi].tetras[0];
   visited[ti] = true;
@@ -67,17 +67,20 @@ void CavityAlgorithm::depthFirstSearch(int ti, vector<int>* polyhedron) {
     if (nextTi == -1) break;
     if (visited[nextTi]) continue;
 
-    const auto& nextTetra = mesh.tetras[nextTi];
-    bool isInside = true;
-    for (int vi : nextTetra.vertices) {
-      if (!isInside) break;
-      Vector3d asVector = mesh.vertices[vi];
-      double squaredDistance = (asVector - *currentFittest).squaredNorm();
-      isInside = squaredDistance <= currentSquaredNorm + EPSILON;
-    }
+    // bool isInside = true;
+    //      for (int vi : nextTetra.vertices) {
+    //        if (!isInside) break;
+    // //       Vector3d asVector = mesh.vertices[vi];
+    // //       double squaredDistance = (asVector -
+    // current->fittest).squaredNorm();
+    // //       isInside = squaredDistance <= currentSquaredNorm + EPSILON;
+    //        isInside = current->fittest.isIn(mesh.vertices[vi]);
+    //      }
 
     // const auto& thisTetra = mesh.tetras[ti];
-    if (isInside) depthFirstSearch(nextTi, polyhedron);
+    const auto& nextTetra = mesh.tetras[nextTi];
+    if (nextTetra.fittest.isIn(current->fittest.center))
+      depthFirstSearch(nextTi, polyhedron);
   }
 }
 
@@ -98,8 +101,7 @@ vector<int> CavityAlgorithm::getSeeds() {
   return seeds;
 }
 
-Eigen::Vector3d CavityAlgorithm::Criteria::value(int ti,
-                                                 const CavityTetraMesh& mesh) {
+Sphere CavityAlgorithm::Criteria::value(int ti, const CavityTetraMesh& mesh) {
   const auto& t = mesh.tetras[ti];
   return circumsphere(
       mesh.vertices[t.vertices[0]], mesh.vertices[t.vertices[1]],
