@@ -1,0 +1,8 @@
+5 4 0
+0 0 1 2 5
+1 0 2 3 7
+2 2 5 6 7
+3 5 7 0 4
+4 5 2 0 7
+# <# of tetrahedra> <nodes per tet. (4 or 10)> <region attribute (0 or 1)>
+# <tetrahedron #> <node> <node> ... <node> [attribute]

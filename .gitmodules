@@ -4,3 +4,9 @@
 [submodule "extern/tetgen"]
 	path = extern/tetgen
 	url = https://github.com/libigl/tetgen.git
+[submodule "extern/googletest"]
+	path = extern/googletest
+	url = git@github.com:google/googletest.git
+[submodule "extern/eigen"]
+	path = extern/eigen
+	url = git@gitlab.com:libeigen/eigen.git
