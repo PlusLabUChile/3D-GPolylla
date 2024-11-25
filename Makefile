@@ -3,22 +3,28 @@ MAKE=make
 BUILD_TYPE=Debug
 BUILD_DIR=build
 BIN=$(BUILD_DIR)/$(BUILD_TYPE)
-MESH=socket.1
+MESH=socket
 
 .PHONY: build init clean test run
 
-all: run
+all: gpolylla.build
 
-3D-GPolyllaTest.init:
+gpolylla_tests.init:
 	@mkdir -p $(BIN)/
-	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\) FOR LIBRARY
-	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=1 -DBUILD_TESTING=1 -S . -B $(BIN)/ 
+	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\)
+	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DBUILD_TESTING=1 -S . -B $(BIN)/
 	@cp $(BIN)/compile_commands.json .
 
-3D-GPolylla.init:
+gpolylla_demo.init:
 	@mkdir -p $(BIN)/
-	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\) FOR EXECUTABLE
-	$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_LIB=0 -DBUILD_TESTING=0 -S . -B $(BIN)/ 
+	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\) FOR DEMO
+	$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DGPOLYLLA_DEMO=1 -DBUILD_TESTING=0 -S . -B $(BIN)/
+	@cp $(BIN)/compile_commands.json .
+
+gpolylla.init:
+	@mkdir -p $(BIN)/
+	@echo GENERATING BUILDSYSTEM \($(BUILD_TYPE)\)
+	@$(CMAKE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DBUILD_TESTING=0 -S . -B $(BIN)/
 	@cp $(BIN)/compile_commands.json .
 
 %.build: %.init
@@ -26,7 +32,7 @@ all: run
 	@echo BUILDING TARGET: $*
 	@$(CMAKE) --build $(BIN)/ -j 10 --target $*
 
-test: 3D-GPolyllaTest.build
+test: gpolylla_tests.build
 	@echo ====================================
 	@echo RUNNING TESTS
 	@ctest --test-dir $(BIN) --output-on-failure
@@ -34,7 +40,9 @@ test: 3D-GPolyllaTest.build
 clean:
 	@$(CMAKE) --build $(BIN)/ -j 10 --target clean
 
-run: 3D-GPolylla.build
+run: gpolylla_demo.build
 	@echo ====================================
 	@echo RUNNING TARGET
-	./$(BIN)/src/3D-GPolylla data/$(MESH) minimal
+	./$(BIN)/demo/gpolylla_demo $(MESH) out/$(MESH)
+
+

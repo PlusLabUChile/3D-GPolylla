@@ -6,7 +6,9 @@
 #include <unordered_set>
 
 namespace gpolylla {
-using std::cout, std::cerr, std::endl;
+using std::cout;
+using std::cerr;
+using std::endl;
 using std::ostream;
 using std::string;
 // using std::vector;

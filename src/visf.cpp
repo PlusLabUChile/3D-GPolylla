@@ -6,7 +6,8 @@
 #include <vector>
 
 namespace gpolylla {
-using std::cerr, std::endl;
+using std::cerr;
+using std::endl;
 using std::ofstream;
 using std::string;
 using std::vector;

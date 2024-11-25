@@ -2,12 +2,12 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/demo/deps/polyscope" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/glfw" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/happly" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/imgui/imgui" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/eigen" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/googletest" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/polyscope" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/polyscope/deps/glfw" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/polyscope/deps/happly" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/polyscope/deps/imgui/imgui" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/tetgen" vcs="Git" />
   </component>
 </project>

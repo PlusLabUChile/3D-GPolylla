@@ -202,11 +202,8 @@ Temporary Items
 
 build/
 .cache/
-compile_commands.json
-.DS_Store
 */.DS_Store
-*.off
-*.ini
-*.png
 
-cmake-*/
+# Output of demos and tests
+data/out/
+logs/

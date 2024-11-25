@@ -1,7 +1,6 @@
 #include <gpolylla/algo.h>
 #include <gpolylla/io.h>
 #include <gtest/gtest.h>
-#include <unistd.h>
 
 namespace gpolylla {
 class CavityAlgorithmTest: public ::testing::Test {

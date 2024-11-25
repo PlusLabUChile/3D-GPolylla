@@ -1,4 +1,3 @@
-#ifndef GPOLYLLA_LIB
 #include <array>
 #include <chrono>
 #include <iostream>
@@ -24,7 +23,8 @@ int main(int argc, char* argv[]) {
               << std::endl;
     return 1;
   }
-  string inputMesh(argv[1]);
+  string inputMesh(DATA_DIR);
+  inputMesh.append(argv[1]);
   string outputFile(argv[2]);
   gpolylla::TetgenReader reader;
   gpolylla::CavityAlgorithm algo;
@@ -38,15 +38,15 @@ int main(int argc, char* argv[]) {
   outMesh = algo(inMesh);
   auto t2 = std::chrono::high_resolution_clock::now();
 
-  cout << "Reading mesh from files: "
-       << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0)
-       << "\n";
-  cout << "Algorythm proccessing: "
-       << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
-       << "\n";
-  cout << "Total: "
-       << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t0)
-       << "\n";
+  // cout << "Reading mesh from files: "
+  //      << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0)
+  //      << "\n";
+  // cout << "Algorythm proccessing: "
+  //      << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
+  //      << "\n";
+  // cout << "Total: "
+  //      << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t0)
+  //      << "\n";
 
   cout << "Final mesh info:\n";
   cout << "Number of polyhedrons: " << outMesh.cells.size() << "\n";
@@ -103,4 +103,3 @@ int main(int argc, char* argv[]) {
   polyscope::show();
 }
 
-#endif  // !GPOLYLLA_LIB
