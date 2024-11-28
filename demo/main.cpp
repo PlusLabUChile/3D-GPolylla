@@ -1,14 +1,11 @@
 #include <array>
 #include <chrono>
 #include <iostream>
-#include <memory>
 #include <string>
 
 #include "gpolylla/algo.h"
 #include "gpolylla/io.h"
 #include "gpolylla/mesh.h"
-#include "gpolylla/utils.h"
-#include "polyscope/point_cloud.h"
 #include "polyscope/polyscope.h"
 #include "polyscope/utilities.h"
 #include "polyscope/volume_mesh.h"
@@ -47,9 +44,26 @@ int main(int argc, char* argv[]) {
   // cout << "Total: "
   //      << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t0)
   //      << "\n";
+  double min, max, avg;
+  min = 10000000000;
+  max = 0;
+  avg = 0;
+  for (const auto& t : outMesh.cells) {
+    if (t.tetras.size() < min) {
+      min = t.tetras.size();
+    }
+    if (t.tetras.size() > max) {
+      max = t.tetras.size();
+    }
+
+    avg += t.tetras.size();
+  }
+
+  avg /= outMesh.cells.size();
 
   cout << "Final mesh info:\n";
   cout << "Number of polyhedrons: " << outMesh.cells.size() << "\n";
+  cout << "    Min:" << min << "  Max:" << max << "  Avg:" << avg << "\n";
   cout << "Number of mesh faces: " << outMesh.faces.size() << "\n";
   cout << "Number of mesh edges: " << outMesh.edges.size() << "\n";
 
@@ -102,4 +116,3 @@ int main(int argc, char* argv[]) {
 
   polyscope::show();
 }
-

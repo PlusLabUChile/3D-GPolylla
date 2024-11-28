@@ -25,8 +25,6 @@ PolyMesh CavityAlgorithm::operator()(const TetraMesh& m) {
     std::vector<int> polyTetras;
     auto& currentTetra = mesh.tetras[ti];
     current = &currentTetra;
-    //     Vector3d pointAsVector = mesh.vertices[currentTetra.vertices[0]];
-    //     currentSquaredNorm = (*currentFittest - pointAsVector).squaredNorm();
     depthFirstSearch(ti, &polyTetras);
 
     // construir el poliedro
