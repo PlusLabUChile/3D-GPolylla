@@ -7,7 +7,7 @@ namespace gpolylla {
 
 class VertexTest : public ::testing::Test {
  protected:
-  VertexTest() : v0(0), v1(1) {
+  VertexTest() : v0(), v1() {
     v0.x = -.5f;
     v0.y = 1.f;
     v0.z = 2.f;
@@ -23,7 +23,7 @@ TEST_F(VertexTest, ConstructorTest) {
 }
 
 TEST_F(VertexTest, OperatorTest) {
-  Vertex dummy(0);
+  Vertex dummy;
   dummy.x = -.5f;
   dummy.y = 1.f;
   dummy.z = 2.f;
@@ -50,7 +50,7 @@ TEST_F(VertexTest, HashTest) {
 
 class EdgeTest : public ::testing::Test {
  protected:
-  EdgeTest() : /* v0(0), v1(1), v2(2), v3(3),  */e0(0), e1(1) {
+  EdgeTest() : /* v0(0), v1(1), v2(2), v3(3),  */ e0(), e1() {
     e0.vertices[0] = 0;
     e0.vertices[1] = 1;
     e1.vertices[0] = 2;
@@ -67,7 +67,7 @@ TEST_F(EdgeTest, CreationTest) {
 }
 
 TEST_F(EdgeTest, OperatorTest) {
-  Edge dummy(0);
+  Edge dummy;
   dummy.vertices[0] = 0;
   dummy.vertices[1] = 1;
   ASSERT_TRUE(e0 == dummy);
@@ -93,7 +93,7 @@ TEST_F(EdgeTest, HashTest) {
 
 class FaceTest : public ::testing::Test {
  protected:
-  FaceTest(): v0(0), v1(1), v2(2), v3(3), v4(4), v5(5), v6(6), f0(0), f1(1) {
+  FaceTest() : v0(), v1(), v2(), v3(), v4(), v5(), v6(), f0(), f1() {
     f0.vertices[0] = 0;
     f0.vertices[1] = 1;
     f0.vertices[2] = 2;
@@ -112,9 +112,8 @@ TEST_F(FaceTest, CreationTest) {
   ASSERT_EQ(f0.vertices[2], 2);
 }
 
-
 TEST_F(FaceTest, OperatorTest) {
-  Face dummy(0);
+  Face dummy;
   dummy.vertices[0] = 0;
   dummy.vertices[1] = 1;
   dummy.vertices[2] = 2;
@@ -134,7 +133,7 @@ TEST_F(FaceTest, HashTest) {
   ASSERT_EQ(map[f0], 100);
   ASSERT_EQ(map[f1], 200);
 
-  Face dummy(1000);
+  Face dummy;
   dummy.vertices = f0.vertices;
   ASSERT_EQ(map[f0], map[dummy]);
   ASSERT_NE(map[f0], map[f1]);
@@ -142,7 +141,7 @@ TEST_F(FaceTest, HashTest) {
 
 class TetraTest : public ::testing::Test {
  protected:
-  TetraTest() : v0(0), v1(1), v2(2), v3(3), v4(4), v5(5), v6(6), v7(7), t0(0), t1(1) {
+  TetraTest() : v0(), v1(), v2(), v3(), v4(), v5(), v6(), v7(), t0(), t1() {
     t0.vertices[0] = 0;
     t0.vertices[1] = 1;
     t0.vertices[2] = 2;
@@ -165,7 +164,7 @@ TEST_F(TetraTest, ConstructorTest) {
 }
 
 TEST_F(TetraTest, OperatorTest) {
-  Tetrahedron dummy(0);
+  Tetrahedron dummy;
   dummy.vertices[0] = 0;
   dummy.vertices[1] = 1;
   dummy.vertices[2] = 2;

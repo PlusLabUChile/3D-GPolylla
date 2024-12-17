@@ -178,6 +178,8 @@ vcpkg_installed/
 build/
 .cache/
 */.DS_Store
+.idea/
+.vscode/
 
 CMakeUserPresets.json
 

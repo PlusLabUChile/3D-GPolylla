@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
   inputMesh.append(argv[1]);
   string outputFile(argv[2]);
   gpolylla::TetgenReader reader;
-  gpolylla::CavityAlgorithm algo;
+  gpolylla::CavityAlgorithm algo((gpolylla::CavityAlgorithm::Criteria()));
   gpolylla::TetraMesh inMesh;
   gpolylla::PolyMesh outMesh;
 
@@ -94,23 +94,26 @@ int main(int argc, char* argv[]) {
   // polyscope::getSurfaceMesh(output_file)
   //     ->addFaceColorQuantity("polylla face", face_colors);
   mainMesh->addCellColorQuantity("polylla face", colors);
-  for (auto poly : outMesh.cells) {
+
+  //  for (auto poly : outMesh.cells) {
+
+  for (int pi = 0; pi < outMesh.cells.size(); pi++) {
+    auto poly = outMesh.cells[pi];
     vector<gpolylla::Vertex> pVert;
     vector<array<int, 4>> pTetras;
     for (int vi : poly.vertices) pVert.push_back(outMesh.vertices[vi]);
     for (int ti : poly.tetras) {
-      array<int, 4> temp;
+      array<int, 4> temp{-1, -1, -1, -1};
       for (int i = 0; i < 4; i++) {
         int target = inMesh.tetras[ti].vertices[i];
         // std::cout << inMesh.tetras[ti] << std::endl;
         for (int vi = 0; vi < pVert.size(); vi++) {
-          if (pVert[vi].idx == target) temp[i] = vi;
+          if (poly.vertices[vi] == target) temp[i] = vi;
         }
       }
       pTetras.push_back(temp);
     }
-    auto* mesh =
-        polyscope::registerTetMesh(std::to_string(poly.idx), pVert, pTetras);
+    auto* mesh = polyscope::registerTetMesh(std::to_string(pi), pVert, pTetras);
     mesh->setEnabled(false);
   }
 

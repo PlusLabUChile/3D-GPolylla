@@ -1,3 +1,9 @@
 [submodule "extern/polyscope"]
 	path = demo/deps/polyscope
 	url = https://github.com/nmwsharp/polyscope.git
+[submodule "demo/deps/polyhedron_kernel"]
+	path = demo/deps/polyhedron_kernel
+	url = https://github.com/TommasoSorgente/polyhedron_kernel.git
+[submodule "demo/deps/qhull"]
+	path = demo/deps/qhull
+	url = https://github.com/qhull/qhull.git

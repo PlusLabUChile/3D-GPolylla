@@ -6,8 +6,5 @@
     <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/glfw" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/happly" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/demo/deps/polyscope/deps/imgui/imgui" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/eigen" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/googletest" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/extern/tetgen" vcs="Git" />
   </component>
 </project>
