@@ -3,58 +3,71 @@
 
 #include <gpolylla/mesh.h>
 #include <gpolylla/utils.h>
-#include <set>
 
 #include <Eigen/Dense>
+#include <set>
 
 namespace gpolylla {
-    class FaceAlgorithm {
-    public:
-        PolyMesh operator()(const TetraMesh &m);
+class Algorithm {
+ public:
+  virtual PolyMesh operator()(const TetraMesh &m) = 0;
+  virtual ~Algorithm() = default;
+};
 
-        class Criteria {
-        public:
-            double value(int fi, const FaceAlgorithm &algo);
-        };
+struct AlgorithmStats {};
 
-    private:
-        void depthFirstSearch(int tetra, std::vector<int> *faces, std::set<int> *points);
+class FaceAlgorithm : public Algorithm {
+ public:
+  PolyMesh operator()(const TetraMesh &m);
 
-        void calculateFittest(const std::vector<Face> &faces);
+  class Criteria {
+   public:
+    double value(int fi, const FaceAlgorithm &algo);
+  };
 
-        std::vector<int> getSeeds();
+ private:
+  void depthFirstSearch(int tetra, std::vector<int> *faces,
+                        std::set<int> *points);
 
-        Criteria c;
-        FaceTetraMesh mesh;
-        std::vector<bool> visited;
-        std::vector<int> fittests;
-    };
+  void calculateFittest(const std::vector<Face> &faces);
 
-    class CavityAlgorithm {
-    public:
-        class Criteria {
-        public:
-            double value(int ti, const CavityAlgorithm &algo);
-        };
+  std::vector<int> getSeeds();
 
-        CavityAlgorithm();
+  Criteria c;
+  FaceTetraMesh mesh;
+  std::vector<bool> visited;
+  std::vector<int> fittests;
+};
 
-        CavityAlgorithm(Criteria c);
+class CavityAlgorithm : public Algorithm {
+ public:
+  class Criteria {
+   public:
+    double value(int ti, const CavityAlgorithm &algo);
+  };
 
-        PolyMesh operator()(const TetraMesh &m);
+  CavityAlgorithm() = default;
 
-    private:
-        void depthFirstSearch(int tetra, std::vector<int> *faces, std::set<int> *points, int seed);
+  CavityAlgorithm(Criteria c);
 
-        void calculateFittest();
+  PolyMesh operator()(const TetraMesh &m);
 
-        std::vector<int> getSeeds();
+  AlgorithmStats stats() const;
 
-        Criteria c;
-        CavityTetraMesh mesh;
-        std::vector<bool> visited;
-        std::vector<Sphere> fittests;
-    };
+ private:
+  void depthFirstSearch(int tetra, std::vector<int> *faces,
+                        std::set<int> *points, int seed);
+
+  void calculateFittest();
+
+  std::vector<int> getSeeds();
+
+  Criteria c;
+  CavityTetraMesh mesh;
+  std::vector<bool> visited;
+  std::vector<Sphere> fittests;
+  PolyMesh ans;
+};
 
 }  // namespace gpolylla
 

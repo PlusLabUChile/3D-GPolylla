@@ -1,5 +1,6 @@
 message("Including all tests")
-find_package(GTest REQUIRED)
+add_subdirectory(extern)
+# find_package(GTest REQUIRED)
 # file(GLOB GPOLYLLA_TEST_SOURCES *.cpp)
 
 set(TEST_SRCS

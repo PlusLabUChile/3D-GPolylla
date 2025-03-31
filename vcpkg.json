@@ -1,6 +1,0 @@
-{
-  "dependencies": [
-    "eigen3",
-    "gtest"
-  ]
-}

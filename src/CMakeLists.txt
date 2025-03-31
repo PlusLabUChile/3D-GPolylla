@@ -17,10 +17,10 @@ set(SRCS
         utils.cpp
 )
 
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+# find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 add_library(${PROJECT_NAME} ${SRCS})
 # target_compile_definitions(${PROJECT_NAME} PRIVATE GPOLYLLA_LIB)
-target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen polyhedron_kernel)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 add_library(GPolylla::GPolylla ALIAS ${PROJECT_NAME})
