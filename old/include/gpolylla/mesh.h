@@ -12,7 +12,6 @@ namespace gpolylla {
 class Vertex {
  public:
   float x, y, z;
-  int tetra;
 
   Vertex();
 
@@ -22,8 +21,8 @@ class Vertex {
 
   // bool operator<(const Vertex&) const;
   bool operator==(const Vertex &) const;
-
-  operator Eigen::Vector3d() const;
+  //
+  operator Eigen::Vector3f() const;
 
   struct Hash {
     std::size_t operator()(const Vertex &v) const;
@@ -32,34 +31,36 @@ class Vertex {
   friend std::ostream &operator<<(std::ostream &, const Vertex &);
 };
 
-class Edge {
- public:
-  std::array<int, 2> vertices;
-  int tetra;
-
-  Edge();
-
-  Edge(int v0, int v1);
-
-  Edge(const Edge &e);
-
-  bool operator==(const Edge &) const;
-
-  inline std::size_t size() const { return vertices.size(); }
-
-  inline int operator[](int idx) const { return vertices[idx]; }
-
-  struct Hash {
-    std::size_t operator()(const Edge &e) const;
-  };
-
-  friend std::ostream &operator<<(std::ostream &, const Edge &);
-};
+// class Edge {
+//  public:
+//   int tetra;
+//
+//   Edge();
+//
+//   Edge(int v0, int v1);
+//
+//   Edge(const Edge &e);
+//
+//   bool operator==(const Edge &) const;
+//
+//   static std::size_t size() { return 2; }
+//
+//   int operator[](int idx) const;
+//   int &operator[](int idx);
+//
+//   struct Hash {
+//     std::size_t operator()(const Edge &e) const;
+//   };
+//
+//   friend std::ostream &operator<<(std::ostream &, const Edge &);
+//
+//  private:
+//   std::array<int, 2> vertices;
+// };
 
 class Face {
  public:
-  std::array<int, 3> vertices;
-  int tetra;
+  // int tetra;
 
   Face();
 
@@ -69,21 +70,24 @@ class Face {
 
   bool operator==(const Face &) const;
 
-  inline std::size_t size() const { return vertices.size(); }
+  static std::size_t size() { return 3; }
 
-  inline int operator[](int idx) const { return vertices[idx]; }
+  int operator[](int idx) const;
+  int &operator[](int idx);
 
   struct Hash {
     std::size_t operator()(const Face &f) const;
   };
 
   friend std::ostream &operator<<(std::ostream &, const Face &);
+
+ private:
+  std::array<int, 3> vertices;
 };
 
 class Tetrahedron {
  public:
-  std::array<int, 4> vertices;
-  std::array<int, 4> faces;
+  // std::array<int, 4> faces;
 
   Tetrahedron();
 
@@ -93,53 +97,76 @@ class Tetrahedron {
 
   bool operator==(const Tetrahedron &t) const;
 
-  inline std::size_t size() const { return vertices.size(); }
+  static std::size_t size() { return 4; }
 
-  inline int operator[](int idx) const { return vertices[idx]; }
+  int operator[](int idx) const;
+  int &operator[](int idx);
+
+  // int face(int idx) const;
+  // int &face(int idx);
 
   struct Hash {
     std::size_t operator()(const Tetrahedron &t) const;
   };
 
   friend std::ostream &operator<<(std::ostream &out, const Tetrahedron &t);
+
+ private:
+  std::array<int, 4> vertices;
+  // int faces[4];
 };
 
 class Polyhedron {
  public:
-  std::vector<int> vertices;
   //  std::vector<int> tetras;
-  std::vector<int> faces;
+  // std::vector<int> faces;
 
   Polyhedron() = default;
-
-  Polyhedron(const std::vector<int> &vertices);
-
-  Polyhedron(const Polyhedron &p);
+  Polyhedron(const Polyhedron &p) = default;
   // Polyhedron(int idx, const std::vector<int>& faces);
 
   bool operator==(const Polyhedron &p) const;
+
+  std::size_t numVertices() const { return vertices.size(); }
+  std::size_t numFaces() const { return faces.size(); }
+  std::size_t numTetras() const { return tetras.size(); }
+
+  int face(int idx) const { return vertices.at(idx); }
+  int &face(int idx) { return vertices.at(idx); }
+  int vertex(int idx) const { return vertices.at(idx); }
+  int &vertex(int idx) { return vertices.at(idx); }
+  int tetra(int idx) const { return tetras.at(idx); }
+  int &tetra(int idx) { return tetras.at(idx); }
 
   struct Hash {
     std::size_t operator()(const Polyhedron &p) const;
   };
 
   friend std::ostream &operator<<(std::ostream &out, const Polyhedron &p);
+
+ private:
+  std::vector<int> vertices;
+  std::vector<int> tetras;
+  std::vector<int> faces;
 };
+
+class Mesh {};
 
 class TetraMesh {
  public:
   std::vector<Vertex> vertices;
-  std::vector<Edge> edges;
-  std::vector<Face> faces;
   std::vector<Tetrahedron> tetras;
+
+  // Tetrahedron tetra(const Vertex &v) const { return tetras[v.tetra]; }
+  // Tetrahedron tetra(const Edge &e) const { return tetras[e.tetra]; }
+  // Tetrahedron tetra(const Face &f) const { return tetras[f.tetra]; }
 
   friend std::ostream &operator<<(std::ostream &out, const TetraMesh &m);
 };
 
-class PolyMesh {
+class PolyMesh : public Mesh {
  public:
   std::vector<Vertex> vertices;
-  std::vector<Edge> edges;
   std::vector<Face> faces;
   std::vector<Tetrahedron> tetras;
   std::vector<Polyhedron> cells;
@@ -178,12 +205,9 @@ class CavityTetrahedron : public Tetrahedron {
   std::array<int, 4> neighs;
 };
 
-class CavityTetraMesh {
+class CavityTetraMesh : public TetraMesh {
  public:
-  std::vector<Vertex> vertices;
   std::vector<Face> faces;
-  std::vector<CavityTetrahedron> tetras;
-
   CavityTetraMesh() = default;
 
   CavityTetraMesh(const TetraMesh &m);

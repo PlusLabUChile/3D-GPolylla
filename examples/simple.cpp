@@ -19,6 +19,7 @@ int main(int argc, char const* argv[]) {
   } else if (std::string(argv[1]) == "cavity") {
     gpolylla::CavityAlgorithm algo;
     ans = algo(mesh);
+    algo.stats();
   } else {
     std::cerr << "Invalid algorithm: " << argv[1] << std::endl;
     return 1;

@@ -1,104 +1,125 @@
-#include <gpolylla/algo.h>
-#include <gpolylla/mesh.h>
-#include <gpolylla/utils.h>
-
+#include <algorithm>
+#include <array>
+#include <stdexcept>
 #include <unordered_set>
 #include <vector>
 
+#include "gpolylla.h"
+
 namespace gpolylla {
-using Eigen::Vector3d;
-using std::set;
+using std::array;
+using std::move;
 using std::unordered_set;
 using std::vector;
 
-CavityAlgorithm::CavityAlgorithm(CavityAlgorithm::Criteria c) : c(c) {}
+// EXTRAS
+class DepthFirstSearch {
+ public:
+  DepthFirstSearch(vector<int> *visited, CavityMesh *mesh,
+                   CavityAlgorithm::Criteria *criteria)
+      : visited(visited), criteria(criteria), mesh(mesh) {}
 
-// First implementation
-PolyMesh CavityAlgorithm::operator()(const TetraMesh &m) {
-  // PolyMesh ans;
-  mesh = CavityTetraMesh(m);
-  calculateFittest();
-  auto seeds = getSeeds();
-  visited = vector<bool>(mesh.tetras.size(), false);
+  void operator()(const int current, const int seed, unordered_set<int> *points,
+                  vector<int> *faces, vector<int> *tetras) {
+    visited->at(current) = seed;
 
+    tetras->push_back(current);
+
+    const CavityTetrahedron &currentTetra = mesh->tetras.at(current);
+
+    for (int vi : currentTetra.vertices) {
+      points->insert(vi);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      int nextTi = currentTetra.neighbours[i];
+      if (nextTi == -1) {
+        faces->push_back(currentTetra.faces[i]);
+        continue;
+      }
+
+      if (visited->at(nextTi) != -1) {
+        if (visited->at(nextTi) != seed)
+          faces->push_back(currentTetra.faces[i]);
+        continue;
+      }
+
+      if (criteria->isNext(seed, nextTi)) {
+        (*this)(nextTi, seed, points, faces, tetras);
+      } else {
+        faces->push_back(currentTetra.faces[i]);
+      }
+    }
+  }
+
+ private:
+  vector<int> *visited;
+  CavityAlgorithm::Criteria *criteria;
+  CavityMesh *mesh;
+};
+
+// IMPLEMENTATION
+PolyMesh CavityAlgorithm::operator()(const Mesh &m) {
+  CavityMesh mesh(m);
+  criteria->bind(&mesh);
+
+  vector<int> visited(mesh.tetras.size());
+
+  vector<int> seeds = criteria->getSeeds();
+
+  DepthFirstSearch dfs(&visited, &mesh, criteria);
+
+  vector<Polyhedron> polys;
   for (int ti : seeds) {
-    if (visited[ti]) continue;
+    if (visited[ti] != -1) continue;
+
     vector<int> faces;
-    set<int> uniquePoints;
-    depthFirstSearch(ti, &faces, &uniquePoints, ti);
+    vector<int> tetras;
+    unordered_set<int> uniquePoints;
+    dfs(ti, ti, &uniquePoints, &faces, &tetras);
 
-    // construir el poliedro
-    // revisar pq no respeta el orden ccw o cw
-    vector<int> points(uniquePoints.begin(), uniquePoints.end());
-    Polyhedron poly(points);
-    poly.faces = faces;
-    ans.cells.push_back(poly);
+    vector points(uniquePoints.begin(), uniquePoints.end());
+    polys.emplace_back(points, faces, tetras);
   }
 
-  ans.vertices = m.vertices;
-  ans.faces = m.faces;
-  ans.edges = m.edges;
-  ans.tetras = m.tetras;
-  return ans;
+  // Perform operations on mesh to create polyMesh
+  criteria->unbind();
+  return {.cells = move(polys),
+          .tetras = m.tetras,
+          .faces = move(mesh.faces),
+          .vertices = move(mesh.vertices)};
 }
 
-void CavityAlgorithm::depthFirstSearch(int ti, vector<int> *faces,
-                                       set<int> *points, int seed) {
-  visited[ti] = true;
-
-  for (int vi : mesh.tetras[ti].vertices) {
-    points->insert(vi);
-  }
-
-  for (int i = 0; i < mesh.tetras[ti].neighs.size(); i++) {
-    int nextTi = mesh.tetras[ti].neighs[i];
-    if (nextTi == -1) {
-      faces->push_back(mesh.tetras[ti].faces[i]);
-      continue;
-    }
-
-    if (visited[nextTi]) {
-      faces->push_back(mesh.tetras[ti].faces[i]);
-      continue;
-    }
-
-    if (fittests[nextTi].isIn(fittests[seed].center))
-      depthFirstSearch(nextTi, faces, points, seed);
-    else
-      faces->push_back(mesh.tetras[ti].faces[i]);
+void SphereCriteria::bind(CavityMesh *m) {
+  mesh = m;
+  spheres = vector<Sphere>(mesh->tetras.size());
+  for (int ti = 0; ti < mesh->tetras.size(); ti++) {
+    spheres[ti] =
+        Sphere(mesh->vertexOfTetra(ti, 0), mesh->vertexOfTetra(ti, 1),
+               mesh->vertexOfTetra(ti, 2), mesh->vertexOfTetra(ti, 3));
   }
 }
 
-void CavityAlgorithm::calculateFittest() {
-  fittests = std::vector<Sphere>(mesh.tetras.size());
-  for (int ti = 0; ti < mesh.tetras.size(); ti++) {
-    const auto &tetra = mesh.tetras[ti];
-    fittests[ti] =
-        circumsphere(mesh.vertices[tetra[0]], mesh.vertices[tetra[1]],
-                     mesh.vertices[tetra[2]], mesh.vertices[tetra[3]]);
-  }
+void SphereCriteria::unbind() {
+  mesh = nullptr;
+  spheres.clear();
 }
 
-vector<int> CavityAlgorithm::getSeeds() {
-  vector<int> seeds(mesh.tetras.size());
-  for (int ti = 0; ti < mesh.tetras.size(); ti++) {
+bool SphereCriteria::isNext(int current, int next) const {
+  return spheres[next].isInside(spheres[current].center);
+}
+
+vector<int> SphereCriteria::getSeeds() const {
+  vector<int> seeds(mesh->tetras.size());
+  for (int ti = 0; ti < mesh->tetras.size(); ti++) {
     seeds[ti] = ti;
   }
 
-  std::sort(seeds.begin(), seeds.end(), [&](int i, int j) {
-    return c.value(i, *this) < c.value(j, *this);
+  std::ranges::sort(seeds, [&](int i, int j) {
+    return spheres[i].radius < spheres[j].radius;
   });
+
   return seeds;
-}
-
-double CavityAlgorithm::Criteria::value(int ti, const CavityAlgorithm &algo) {
-  return algo.fittests[ti].radius;
-}
-
-AlgorithmStats CavityAlgorithm::stats() const {
-  AlgorithmStats stats;
-
-  return stats;
 }
 
 }  // namespace gpolylla

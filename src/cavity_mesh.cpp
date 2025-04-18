@@ -1,52 +1,31 @@
-#include <gpolylla/mesh.h>
+#include <algorithm>
 
-#include <unordered_map>
+#include "gpolylla.h"
+#include "utils.h"
 
 namespace gpolylla {
-    using std::unordered_map;
-    using std::vector;
-    using std::ostream;
+using namespace std;
 
+CavityMesh::CavityMesh(const Mesh& m) : faces(m.faces), vertices(m.vertices) {
+  tetras.reserve(m.tetras.size());
+  const FaceMap twinMap = getAdjacentFaces(faces);
 
-    CavityTetrahedron::CavityTetrahedron(const Tetrahedron &t)
-            : Tetrahedron(t), neighs({-1, -1, -1, -1}) {}
+  for (int ti = 0; ti < m.tetras.size(); ++ti) {
+    const auto& [vertices, faces] = m.tetras.at(ti);
+    CavityTetrahedron newTetra(vertices, faces);
 
-    CavityTetraMesh::CavityTetraMesh(const TetraMesh &m) : vertices(m.vertices), faces(m.faces) {
-        tetras.reserve(m.tetras.size());
-
-        FaceTetraMesh aux(m);
-//  for (const auto& t : aux.tetras) {
-        for (int ti = 0; ti < aux.tetras.size(); ++ti) {
-            const auto &t = aux.tetras[ti];
-            CavityTetrahedron newTetra = m.tetras[ti];
-            for (int i = 0; i < t.faces.size(); ++i) {
-                const auto &f = aux.faces[t.faces[i]];
-                if (f.twin == -1) continue;
-                newTetra.neighs[i] = m.faces[f.twin].tetra;
-            }
-
-            tetras.push_back(newTetra);
-        }
+    for (int i = 0; i < faces.size(); ++i) {
+      const auto& f = m.faceOfTetra(ti, i);
+      for (auto& twinFaces = twinMap.at(getKey(f));
+           const int twinFace : twinFaces) {
+        if (twinFace == f.tetra) continue;
+        newTetra.neighbours[i] = m.faces.at(twinFace).tetra;
+        break;
+      }
     }
 
-    ostream &operator<<(ostream &out, const FaceTetraMesh &m) {
-        out << "FACEMESH\n"
-            << "    Total vertices: " << m.vertices.size() << "\n"
-            << "    Total edges: " << m.vertices.size() << "\n"
-            << "    Total faces: " << m.vertices.size() << "\n"
-            << "    Total tetrahedrons: " << m.vertices.size() << "\n";
-        out << "VERTICES\n";
-        for (const auto &v: m.vertices) {
-            out << "    " << v << "\n";
-        }
-        out << "FACES\n";
-        for (const auto &f: m.faces) {
-            out << "    " << f << "\n";
-        }
-        out << "TETRAHEDRONS\n";
-        for (const auto &t: m.tetras) {
-            out << "    " << t << "\n";
-        }
-        return out;
-    }
-}  // namespace gpolylla
+    tetras.push_back(newTetra);
+  }
+}
+
+};  // namespace gpolylla

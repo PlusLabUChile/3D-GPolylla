@@ -2,7 +2,6 @@
 #define _GPOLYLLA_ALGO_H_
 
 #include <gpolylla/mesh.h>
-#include <gpolylla/utils.h>
 
 #include <Eigen/Dense>
 #include <set>
@@ -48,25 +47,26 @@ class CavityAlgorithm : public Algorithm {
 
   CavityAlgorithm() = default;
 
-  CavityAlgorithm(Criteria c);
+  explicit CavityAlgorithm(Criteria c);
 
-  PolyMesh operator()(const TetraMesh &m);
+  PolyMesh operator()(const TetraMesh &m) override;
 
   AlgorithmStats stats() const;
 
  private:
+  // std::vector<Sphere> getSpheres();
+  // std::vector<int> getSeeds();
+
   void depthFirstSearch(int tetra, std::vector<int> *faces,
                         std::set<int> *points, int seed);
 
-  void calculateFittest();
-
-  std::vector<int> getSeeds();
-
   Criteria c;
-  CavityTetraMesh mesh;
-  std::vector<bool> visited;
-  std::vector<Sphere> fittests;
-  PolyMesh ans;
+
+  // CavityTetraMesh mesh;
+  // PolyMesh pMesh;
+
+  std::vector<int> visited;
+  // std::vector<Sphere> spheres;
 };
 
 }  // namespace gpolylla

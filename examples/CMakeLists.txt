@@ -10,5 +10,5 @@ endfunction()
 
 
 add_example(simple.cpp simple "GPolylla::GPolylla")
-
+add_example(quality.cpp quality "GPolylla::GPolylla;polyhedron_kernel")
 

@@ -11,12 +11,11 @@ add_subdirectory(extern)
 add_subdirectory(src)
 
 if (BUILD_TESTING)
-  include(CTest)
-  add_subdirectory(test)
-endif()
+    add_subdirectory(test)
+endif ()
 
 if (GPOLYLLA_DEMO)
-  add_subdirectory(examples)
-endif()
+    add_subdirectory(examples)
+endif ()
 
 # target_include_directories(gpol PUBLIC "${PROJECT_SOURCE_DIR}/include")
