@@ -13,6 +13,7 @@ set(GPOL_SRCS
         # Utils
         math.cpp
         utils.cpp
+        face_algorithm.cpp
 )
 
 # find_package(Eigen3 3.3 REQUIRED NO_MODULE)

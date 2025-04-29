@@ -107,6 +107,13 @@ class CavityMesh {
   std::vector<Vertex> vertices;
 };
 
+class FaceMesh {
+public:
+ std::vector<Vertex> vertices;
+ std::vector<Face> faces;
+ std::vector<Tetrahedron> tetras;
+};
+
 class PolyMesh {
  public:
   std::vector<Polyhedron> cells;
@@ -137,6 +144,23 @@ class Algorithm {
   virtual PolyMesh operator()(const Mesh &mesh) = 0;
 };
 
+class FaceAlgorithm : public Algorithm {
+public:
+ class Criteria {
+ public:
+  virtual ~Criteria() = 0;
+  virtual void bind(FaceMesh* mesh) = 0;
+  virtual void unbind() = 0;
+ };
+
+ FaceAlgorithm(Criteria *criteria) : criteria(criteria) {};
+ ~FaceAlgorithm() override = default;
+ PolyMesh operator()(const Mesh &mesh) override;
+
+private:
+ Criteria *criteria;
+};
+
 class CavityAlgorithm : public Algorithm {
  public:
   class Criteria {
@@ -144,8 +168,8 @@ class CavityAlgorithm : public Algorithm {
     virtual ~Criteria() = default;
     virtual void bind(CavityMesh *mesh) = 0;
     virtual void unbind() = 0;
-    [[nodiscard]] virtual bool isNext(int current, int next) const = 0;
-    [[nodiscard]] virtual std::vector<int> getSeeds() const = 0;
+    virtual bool isNext(int current, int next) const = 0;
+    virtual std::vector<int> getSeeds() const = 0;
   };
 
   CavityAlgorithm(Criteria *criteria) : criteria(criteria) {};
@@ -155,6 +179,7 @@ class CavityAlgorithm : public Algorithm {
  private:
   Criteria *criteria;
 };
+
 
 class SphereCriteria : public CavityAlgorithm::Criteria {
  public:

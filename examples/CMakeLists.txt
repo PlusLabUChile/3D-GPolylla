@@ -9,6 +9,6 @@ function(add_example CPP_FILE EXEC_NAME LIBRARIES)
 endfunction()
 
 
-add_example(simple.cpp simple "GPolylla::GPolylla")
-add_example(quality.cpp quality "GPolylla::GPolylla;polyhedron_kernel")
+add_example(simple.cpp simple "GPolylla::gpolylla")
+add_example(quality.cpp quality "GPolylla::gpolylla;polyhedron_kernel")
 

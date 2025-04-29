@@ -44,11 +44,11 @@ class DepthFirstSearch {
         continue;
       }
 
-      if (criteria->isNext(seed, nextTi)) {
+      if (criteria->isNext(seed, nextTi))
         (*this)(nextTi, seed, points, faces, tetras);
-      } else {
+      else
         faces->push_back(currentTetra.faces[i]);
-      }
+
     }
   }
 
@@ -63,9 +63,9 @@ PolyMesh CavityAlgorithm::operator()(const Mesh &m) {
   CavityMesh mesh(m);
   criteria->bind(&mesh);
 
-  vector<int> visited(mesh.tetras.size());
+  vector visited(mesh.tetras.size(), -1);
 
-  vector<int> seeds = criteria->getSeeds();
+  vector seeds = criteria->getSeeds();
 
   DepthFirstSearch dfs(&visited, &mesh, criteria);
 
