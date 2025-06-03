@@ -59,6 +59,10 @@ vec3 normal(const Vertex& p0, const Vertex& p1, const Vertex& p2) {
   return (v1 - v0).cross(v2 - v0);
 }
 
+double area(const Vertex& p0, const Vertex& p1, const Vertex& p2) {
+  return normal(p0, p1, p2).norm() * .5;
+}
+
 bool isOutside(const Vertex& p0, const Vertex& p1, const Vertex& p2,
                const Vertex& v) {
   const vec3 intern = toVector(v) - toVector(p0);

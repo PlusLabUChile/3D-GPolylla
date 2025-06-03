@@ -3,16 +3,16 @@
 #include <unordered_set>
 
 namespace gpolylla {
-using std::vector;
 using std::unordered_set;
+using std::vector;
 
 class DepthFirstSearch {
  public:
   DepthFirstSearch(vector<int> *visited, FaceMesh *mesh,
-                   CavityAlgorithm::Criteria *criteria)
+                   FaceAlgorithm::Criteria *criteria)
       : visited(visited), mesh(mesh), criteria(criteria) {}
   void operator()(const int current, const int seed, unordered_set<int> *points,
-    vector<int> *faces, vector<int> *tetras) {
+                  vector<int> *faces, vector<int> *tetras) {
     visited->at(current) = seed;
     tetras->push_back(current);
     const auto &currentTetra = mesh->tetras.at(current);
@@ -32,8 +32,7 @@ class DepthFirstSearch {
       int nextTi = mesh->faces[face.twin].tetra;
 
       if (visited->at(nextTi) != -1) {
-        if (visited->at(nextTi) != seed)
-          faces->push_back(fi);
+        if (visited->at(nextTi) != seed) faces->push_back(fi);
         continue;
       }
 
@@ -48,7 +47,7 @@ class DepthFirstSearch {
  private:
   vector<int> *visited;
   FaceMesh *mesh;
-  CavityAlgorithm::Criteria *criteria;
+  FaceAlgorithm::Criteria *criteria;
 };
 
 PolyMesh FaceAlgorithm::operator()(const Mesh &m) {
@@ -106,5 +105,57 @@ PolyMesh FaceAlgorithm::operator()(const Mesh &m) {
   // ans.tetras = m.tetras;
   // return ans;
 };
+
+void AreaCriteria::bind(FaceMesh *m) {
+  mesh = m;
+  fittests = vector<int>(mesh->tetras.size());
+  for (int ti = 0; ti < mesh->tetras.size(); ++ti) {
+    auto &t = mesh->tetras.at(ti);
+    int fittest = -1;
+    double max = 0.f;
+    for (auto &fi : t.faces) {
+      const auto &face = mesh->faces.at(fi);
+      double temp = area(mesh->vertices.at(face.vertices[0]),
+                         mesh->vertices.at(face.vertices[1]),
+                         mesh->vertices.at(face.vertices[2]));
+      if (fittest == -1 || temp > max) {
+        fittest = fi;
+        max = temp;
+      }
+    }
+    fittests[ti] = fittest;
+  }
+}
+
+void AreaCriteria::unbind() {
+  mesh = nullptr;
+  fittests.clear();
+}
+
+bool AreaCriteria::isNext(int current, int next) {
+  return fittests[next] == current;
+}
+
+vector<int> AreaCriteria::getSeeds() {
+  vector<int> seedFace;
+  for (int fi = 0; fi < mesh->faces.size(); ++fi) {
+    const auto &face = mesh->faces[fi];
+
+    // If t1 is -1, check if f is the fittest of t0
+    if (face.twin == -1) {
+      if (fittests[face.tetra] == fi) {
+        seedFace.push_back(face.tetra);
+      }
+      continue;
+    }
+    // If  not -1, check if f its the fittest on both tetras
+    int f0 = fittests[face.tetra];
+    int f1 = fittests[mesh->faces[face.twin].tetra];
+    if (fi == f0 && fi == f1) {
+      seedFace.push_back(face.tetra);
+    }
+  }
+  return seedFace;
+}
 
 }  // namespace gpolylla

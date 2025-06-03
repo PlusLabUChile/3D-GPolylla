@@ -1,16 +1,12 @@
+//
+// Created by vigb9 on 01-06-2025.
+//
+
 #ifndef UTILS_H
 #define UTILS_H
-#include <array>
-#include <map>
 
-#include "gpolylla.h"
+#include "polylla.h"
 
-namespace gpolylla {
-using FaceKey = std::array<int, 3>;
-using FaceMap = std::map<FaceKey, std::array<int, 2>>;
-FaceKey getKey(const Face& f);
-FaceMap getAdjacentFaces(const std::vector<Face>& faces);
+namespace Polylla {}  // namespace Polylla
 
-}  // namespace gpolylla
-
-#endif  // MATH_H
+#endif  // UTILS_H

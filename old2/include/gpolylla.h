@@ -19,6 +19,7 @@ class Face {
  public:
   std::array<int, 3> vertices;
   int tetra;
+  int twin;
 
   Face() : Face({-1, -1, -1}) {};
   Face(const std::array<int, 3> &vertices) : Face(vertices, -1) {};
@@ -108,10 +109,12 @@ class CavityMesh {
 };
 
 class FaceMesh {
-public:
- std::vector<Vertex> vertices;
- std::vector<Face> faces;
- std::vector<Tetrahedron> tetras;
+ public:
+  FaceMesh(const Mesh &m);
+
+  std::vector<Vertex> vertices;
+  std::vector<Face> faces;
+  std::vector<Tetrahedron> tetras;
 };
 
 class PolyMesh {
@@ -126,15 +129,17 @@ class PolyMesh {
 bool isOutside(const Vertex &p0, const Vertex &p1, const Vertex &p2,
                const Vertex &v);
 
+inline double area(const Vertex &p0, const Vertex &p1, const Vertex &p2);
+
 class Sphere {
  public:
-  float radius{};
-  Vertex center{};
+  float radius = 0.f;
+  Vertex center = {};
 
   Sphere() = default;
   Sphere(const Vertex &v0, const Vertex &v1, const Vertex &v2,
          const Vertex &v3);
-  [[nodiscard]] bool isInside(const Vertex &v) const;
+  bool isInside(const Vertex &v) const;
 };
 
 // ALGORITHM
@@ -145,20 +150,34 @@ class Algorithm {
 };
 
 class FaceAlgorithm : public Algorithm {
-public:
- class Criteria {
  public:
-  virtual ~Criteria() = 0;
-  virtual void bind(FaceMesh* mesh) = 0;
-  virtual void unbind() = 0;
- };
+  class Criteria {
+   public:
+    virtual ~Criteria() = 0;
+    virtual void bind(FaceMesh *mesh) = 0;
+    virtual void unbind() = 0;
+    virtual std::vector<int> getSeeds() = 0;
+    virtual bool isNext(int seed, int next_ti);
+  };
 
- FaceAlgorithm(Criteria *criteria) : criteria(criteria) {};
- ~FaceAlgorithm() override = default;
- PolyMesh operator()(const Mesh &mesh) override;
+  FaceAlgorithm(Criteria *criteria) : criteria(criteria) {};
+  ~FaceAlgorithm() override = default;
+  PolyMesh operator()(const Mesh &mesh) override;
 
-private:
- Criteria *criteria;
+ private:
+  Criteria *criteria = nullptr;
+};
+
+class AreaCriteria : public FaceAlgorithm::Criteria {
+ public:
+  void bind(FaceMesh *mesh) override;
+  void unbind() override;
+  std::vector<int> getSeeds() override;
+  bool isNext(int seed, int next_ti) override;
+
+ private:
+  FaceMesh *mesh = nullptr;
+  std::vector<int> fittests = {};
 };
 
 class CavityAlgorithm : public Algorithm {
@@ -177,9 +196,8 @@ class CavityAlgorithm : public Algorithm {
   PolyMesh operator()(const Mesh &mesh) override;
 
  private:
-  Criteria *criteria;
+  Criteria *criteria = nullptr;
 };
-
 
 class SphereCriteria : public CavityAlgorithm::Criteria {
  public:
