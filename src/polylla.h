@@ -40,6 +40,7 @@ class Mesh {
  public:
   Mesh(const Eigen::ArrayX<Vertex>& vertices, const Eigen::ArrayX<Face>& faces,
        const Eigen::ArrayX<Tetrahedron>& cells);
+  Mesh() = default;
 
  private:
   Eigen::ArrayX<Vertex> vertices;

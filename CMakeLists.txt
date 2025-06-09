@@ -7,14 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 # file(COPY "${PROJECT_SOURCE_DIR}/data" DESTINATION "${CMAKE_BINARY_DIR}")
 
-add_subdirectory(extern)
+#add_subdirectory(extern)
 add_subdirectory(src)
 
-if (BUILD_TESTING)
+option(GPOLYLLA_TEST "Build tests" OFF)
+if (GPOLYLLA_TEST)
     add_subdirectory(test)
 endif ()
 
-if (GPOLYLLA_DEMO)
+option(GPOLYLLA_EXAMPLES "Build examples" OFF)
+if (GPOLYLLA_EXAMPLES)
     add_subdirectory(examples)
 endif ()
 

@@ -7,6 +7,8 @@
 
 #include "polylla.h"
 
-namespace Polylla {}  // namespace Polylla
+namespace Polylla {
+
+}  // namespace Polylla
 
 #endif  // UTILS_H
