@@ -1,6 +1,15 @@
 message("-- [GPolylla] Building")
 set(GPOL_SRCS
         mesh.cpp
+        reader.cpp
+        neighbours.cpp
+        writer.cpp
+
+        # Extras
+        utils.h
+        utils.cpp
+        logger.h
+        logger.cpp
 )
 
 include(FetchContent)

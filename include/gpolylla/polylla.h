@@ -2,89 +2,58 @@
 #define POLYLLA_H
 #include <Eigen/Dense>
 #include <array>
+#include <functional>
 #include <string>
 #include <vector>
 
-namespace polylla {
+namespace Polylla {
 
-class Vertex : public Eigen::Vector3f {
+struct Vertex : Eigen::Vector3f {
   using Eigen::Vector3f::Vector3f;
 };
 
-class Face {
- public:
-  Face(int v1, int v2, int v3);
+struct Face {
+  std::array<int, 3> vertices = {-1, -1, -1};
+  std::array<int, 2> tetras = {-1, -1};  // Constructors
+  Face();
+  Face(int v0, int v1, int v2);
   Face(const std::array<int, 3>& verts);
-
-  int operator[](int index) const;
-  int& operator[](int index);
-  int size() const;
-
-  // Boolean operator
+  Face(const std::array<int, 3>& verts, const std::array<int, 2>& tets);
+  // Hash operator
+  std::size_t hash() const;
+  // Equality operator
   bool operator==(const Face& other) const;
-
-  // Iterators
-  std::array<int, 3>::iterator begin();
-  std::array<int, 3>::iterator end();
-  std::array<int, 3>::const_iterator begin() const;
-  std::array<int, 3>::const_iterator end() const;
-
- private:
-  std::array<int, 3> vertices;
 };
 
-class Tetrahedron {
- public:
-  Tetrahedron(int v1, int v2, int v3, int v4);
+struct Tetrahedron {
+  std::array<int, 4> vertices = {-1, -1, -1, -1};
+  std::array<int, 4> faces = {-1, -1, -1, -1};   // Faces of the tetrahedron
+  std::array<int, 4> neighs = {-1, -1, -1, -1};  // Neighbour tetrahedra
+  Tetrahedron();
+  Tetrahedron(int v0, int v1, int v2, int v3);
   Tetrahedron(const std::array<int, 4>& verts);
-
-  int operator[](int index) const;
-  int& operator[](int index);
-  int size() const;
-
-  // Boolean operator
+  Tetrahedron(const std::array<int, 4>& verts, const std::array<int, 4>& faces,
+              const std::array<int, 4>& neighbors);
+  // Hash operator
+  std::size_t hash() const;
+  // Equality operator
   bool operator==(const Tetrahedron& other) const;
-
-  // Iterators
-  std::array<int, 4>::iterator begin();
-  std::array<int, 4>::iterator end();
-  std::array<int, 4>::const_iterator begin() const;
-  std::array<int, 4>::const_iterator end() const;
-
- private:
-  std::array<int, 4> vertices;
 };
 
-class Polyhedron {
- public:
-  Polyhedron() = default;
-  Polyhedron(const std::vector<int>& verts);
-
-  int operator[](int index) const;
-  int& operator[](int index);
-  int size() const;
-  bool empty() const;
-
-  // Boolean operator
-  bool operator==(const Polyhedron& other) const;
-
-  // Iterators
-  std::vector<int>::iterator begin();
-  std::vector<int>::iterator end();
-  std::vector<int>::const_iterator begin() const;
-  std::vector<int>::const_iterator end() const;
-
-  // Modifiers
-  void add(int vertex);
-  void clear();
-
- private:
+struct Polyhedron {
   std::vector<int> vertices;
+  std::vector<int> cells;
+  Polyhedron();
+  Polyhedron(const std::vector<int>& verts);
+  Polyhedron(const std::vector<int>& verts, const std::vector<int>& cells);
+  // Hash operator
+  std::size_t hash() const;
+  // Equality operator
+  bool operator==(const Polyhedron& other) const;
 };
 
 class Mesh {
  public:
-  static Mesh fromFile(const std::string& node, const std::string& ele);
   std::vector<Vertex> vertices;
   std::vector<Face> faces;
   std::vector<Tetrahedron> cells;
@@ -92,21 +61,68 @@ class Mesh {
 
 class PolyMesh {
  public:
-  void toFile(const std::string& visf);
   std::vector<Vertex> vertices;
   std::vector<Face> faces;
+  std::vector<Tetrahedron> tetras;
   std::vector<Polyhedron> cells;
 };
 
-class Polylla {
+class Reader {
+ public:
+  virtual ~Reader() = default;
+  virtual Mesh readMesh() = 0;
+};
+
+class TetgenReader : public Reader {
+ public:
+  std::string meshName;
+  Mesh readMesh() override;
+};
+
+class Writer {
+ public:
+  virtual void writeMesh(PolyMesh mesh) = 0;
+  virtual ~Writer() = default;
+};
+
+class VisFWriter : public Writer {
+ public:
+  std::string meshName;
+  void writeMesh(PolyMesh mesh) override;
+};
+
+class Algorithm {
+ public:
+  virtual ~Algorithm() = default;
   virtual PolyMesh operator()(const Mesh& mesh) = 0;
-  virtual ~Polylla() = 0;
 };
 
 // class CavityPolylla : public Polylla {
 //  public:
 //   PolyMesh operator()(const Mesh& mesh) override;
 // };
-}  // namespace polylla
+}  // namespace Polylla
+
+// Hash function specializations for std::unordered_set and std::unordered_map
+namespace std {
+template <>
+struct hash<Polylla::Face> {
+  std::size_t operator()(const Polylla::Face& f) const { return f.hash(); }
+};
+
+template <>
+struct hash<Polylla::Tetrahedron> {
+  std::size_t operator()(const Polylla::Tetrahedron& t) const {
+    return t.hash();
+  }
+};
+
+template <>
+struct hash<Polylla::Polyhedron> {
+  std::size_t operator()(const Polylla::Polyhedron& p) const {
+    return p.hash();
+  }
+};
+}  // namespace std
 
 #endif  // POLYLLA_H

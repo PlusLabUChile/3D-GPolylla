@@ -2,16 +2,15 @@
     "version": 8,
     "configurePresets": [
         {
-            "name": "default",
-            "displayName": "Configure preset using toolchain file",
-            "description": "Sets Ninja generator, build and install directory",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "name": "Debug",
+            "displayName": "Debug version",
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_TOOLCHAIN_FILE": "",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "GPOLYLLA_DEMO": true,
-                "BUILD_TESTING": true
+                "GPOLYLLA_TEST": "ON",
+                "GPOLYLLA_EXAMPLES": "OFF"
             }
         }
     ]
