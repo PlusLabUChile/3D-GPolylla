@@ -13,6 +13,7 @@ struct Face {
 };
 
 void VisFWriter::writeMesh(PolyMesh mesh) {
+  /*
   ofstream file(meshName + ".visf");
   if (!file.is_open()) {
     throw runtime_error("Unable to create file: " + meshName + ".visf");
@@ -60,4 +61,5 @@ void VisFWriter::writeMesh(PolyMesh mesh) {
     file << endl;
   }
   cout << "Done" << endl;
+  */
 }

@@ -2,37 +2,43 @@
 #define UTILS_H
 #include <gpolylla/polylla.h>
 
-#include <map>
+namespace Polylla
+{
 
-namespace Polylla {
+constexpr int FACE_CONFIGURATION[4][3] = {
+    {1, 2, 3}, // 0
+    {0, 2, 3}, // 1
+    {0, 1, 3}, // 2
+    {0, 1, 2}  // 3
+};
 
-template <typename T>
-bool sameContent(const T* a, const T* b, size_t size) {
-  bool same = true;
-  for (size_t i = 0; i < size; ++i) {
-    bool equal = false;
-    for (size_t j = 0; j < size; ++j) {
-      if (a[i] == b[j]) {
-        equal = true;
-        break;
-      }
+template <typename T> bool sameContent(const T *a, const T *b, size_t size)
+{
+    bool same = true;
+    for (size_t i = 0; i < size; ++i)
+    {
+        bool equal = false;
+        for (size_t j = 0; j < size; ++j)
+        {
+            if (a[i] == b[j])
+            {
+                equal = true;
+                break;
+            }
+        }
+
+        if (!equal)
+        {
+            same = false;
+            break;
+        }
     }
-
-    if (!equal) {
-      same = false;
-      break;
-    }
-  }
-  return same;
+    return same;
 }
 
-std::vector<std::array<int, 3>> makeDirectedFaces(
-    const std::vector<Tetrahedron>& tetras,
-    const std::vector<Vertex>& vertices);
+std::vector<Face> buildFaces(const std::vector<Vertex> &vertices, const std::vector<Tetrahedron> &tetrahedrons);
 
-std::map<std::array<int, 3>, std::array<int, 2>> calculateNeighbours(
-    const std::vector<Tetrahedron>& tetras);
+void buildConnectivity(Mesh *mesh);
+} // namespace Polylla
 
-}  // namespace Polylla
-
-#endif  // UTILS_H
+#endif // UTILS_H
