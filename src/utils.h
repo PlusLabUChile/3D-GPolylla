@@ -12,6 +12,8 @@ constexpr int FACE_CONFIGURATION[4][3] = {
     {0, 1, 2}  // 3
 };
 
+constexpr float TOLERANCE = 0.00000001f;
+
 template <typename T> bool sameContent(const T *a, const T *b, size_t size)
 {
     bool same = true;
@@ -35,10 +37,6 @@ template <typename T> bool sameContent(const T *a, const T *b, size_t size)
     }
     return same;
 }
-
-std::vector<Face> buildFaces(const std::vector<Vertex> &vertices, const std::vector<Tetrahedron> &tetrahedrons);
-
-void buildConnectivity(Mesh *mesh);
 } // namespace Polylla
 
 #endif // UTILS_H

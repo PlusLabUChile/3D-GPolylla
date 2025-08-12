@@ -10,6 +10,7 @@ set(GPOL_SRCS
         utils.cpp
         logger.h
         logger.cpp
+        cavity.cpp
 )
 
 include(FetchContent)

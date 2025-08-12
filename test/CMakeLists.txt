@@ -16,6 +16,7 @@ enable_testing()
 set(GPOL_TEST_SRCS
         mesh_test.cpp
         tetgen_test.cpp
+        cavity_algorithm_test.cpp
 )
 
 add_executable(GPolyllaTests ${GPOL_TEST_SRCS})

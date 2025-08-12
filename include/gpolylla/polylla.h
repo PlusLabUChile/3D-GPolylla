@@ -108,10 +108,11 @@ class Algorithm
     virtual PolyMesh operator()(const Mesh &mesh) = 0;
 };
 
-// class CavityPolylla : public Polylla {
-//  public:
-//   PolyMesh operator()(const Mesh& mesh) override;
-// };
+class CavityAlgorithm : public Algorithm
+{
+  public:
+    PolyMesh operator()(const Mesh &mesh) override;
+};
 } // namespace Polylla
 
 // Hash function specializations for std::unordered_set and std::unordered_map
