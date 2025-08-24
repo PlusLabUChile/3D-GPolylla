@@ -1,7 +1,6 @@
-#include <fstream>
-#include <gpolylla/polylla.h>
-
 #include "utils.h"
+#include <fstream>
+
 
 using namespace Polylla;
 using namespace std;
@@ -12,12 +11,12 @@ struct DirectedInfo
     vector<vector<int>> cells;
 };
 
-bool isOutside(int fi, int vi, const PolyMesh& mesh)
+bool isOutside(int fi, int vi, const PolyMesh &mesh)
 {
-    const Vertex& ref = mesh.vertices[vi];
-    const Vertex& v0 = mesh.vertices[mesh.faces[fi].vertices[0]];
-    const Vertex& v1 = mesh.vertices[mesh.faces[fi].vertices[1]];
-    const Vertex& v2 = mesh.vertices[mesh.faces[fi].vertices[2]];
+    const Vertex &ref = mesh.vertices[vi];
+    const Vertex &v0 = mesh.vertices[mesh.faces[fi].vertices[0]];
+    const Vertex &v1 = mesh.vertices[mesh.faces[fi].vertices[1]];
+    const Vertex &v2 = mesh.vertices[mesh.faces[fi].vertices[2]];
     const auto normal = (v1 - v0).cross(v2 - v0);
     const auto toRef = ref - v0;
     return normal.dot(toRef) > 0;
@@ -30,16 +29,16 @@ DirectedInfo getDirectedFaces(PolyMesh *mesh)
     int fi = 0;
     for (int pi = 0; pi < mesh->cells.size(); ++pi)
     {
-        const Polyhedron& p = mesh->cells[pi];
+        const Polyhedron &p = mesh->cells[pi];
         for (const int ti : p.cells)
         {
-            const Tetrahedron& t = mesh->tetras[ti];
-            for (const int tetraFi: t.faces)
+            const Tetrahedron &t = mesh->tetras[ti];
+            for (const int tetraFi : t.faces)
             {
                 if (ranges::find(p.faces, tetraFi) == p.faces.end())
                     continue;
 
-                const Face& f = mesh->faces[tetraFi];
+                const Face &f = mesh->faces[tetraFi];
                 for (const int ref : t.vertices)
                 {
                     // Ref is the only vertex that is not part of the face
@@ -109,7 +108,7 @@ void VisFWriter::writeMesh(PolyMesh mesh)
     file << mesh.cells.size() << endl;
     for (int pi = 0; pi < mesh.cells.size(); ++pi)
     {
-        const auto& p = mesh.cells[pi];
+        const auto &p = mesh.cells[pi];
         file << p.faces.size();
         for (int fi : p.faces)
         {

@@ -1,12 +1,7 @@
-#include <gpolylla/polylla.h>
-#include <gtest/gtest.h>
+#include "utils.h"
 
 using namespace Polylla;
 
-template <typename T> void checkIn(const std::vector<T> &vec, const T &value)
-{
-    ASSERT_TRUE(std::find(vec.begin(), vec.end(), value) != vec.end()) << "Value not found in vector.";
-}
 
 class TetgenReaderTest : public ::testing::Test
 {
@@ -14,14 +9,17 @@ class TetgenReaderTest : public ::testing::Test
     TetgenReader reader;
 };
 
+
+
+
 TEST_F(TetgenReaderTest, BasicReadMesh)
 {
     reader.meshName = DATA_DIR "basic";
     Mesh mesh = reader.readMesh();
 
-    ASSERT_EQ(mesh.vertices.size(), 8);
-    ASSERT_EQ(mesh.cells.size(), 5);
-    ASSERT_EQ(mesh.faces.size(), 16);
+    ASSERT_EQ(mesh.vertices.size(), BASIC_MESH.vertices.size());
+    ASSERT_EQ(mesh.cells.size(), BASIC_MESH.cells.size());
+    ASSERT_EQ(mesh.faces.size(), BASIC_MESH.faces.size());
 
     /*
     0    0.0  0.0  0.0
@@ -33,14 +31,15 @@ TEST_F(TetgenReaderTest, BasicReadMesh)
     6    1.0  1.0  1.0
     7    1.0  1.0  0.0
     */
-    checkIn(mesh.vertices, Vertex(0, 0, 0));
-    checkIn(mesh.vertices, Vertex(0, 0, 1));
-    checkIn(mesh.vertices, Vertex(1, 0, 1));
-    checkIn(mesh.vertices, Vertex(1, 0, 0));
-    checkIn(mesh.vertices, Vertex(0, 1, 0));
-    checkIn(mesh.vertices, Vertex(0, 1, 1));
-    checkIn(mesh.vertices, Vertex(1, 1, 1));
-    checkIn(mesh.vertices, Vertex(1, 1, 0));
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[0]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[1]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[2]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[3]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[4]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[5]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[6]);
+    // checkIn(mesh.vertices, BASIC_MESH.vertices[7]);
+    checkSimilar(mesh.vertices, BASIC_MESH.vertices, "Vertices");
 
     /*
     0 0 1 2 5
@@ -49,11 +48,12 @@ TEST_F(TetgenReaderTest, BasicReadMesh)
     3 5 7 0 4
     4 5 2 0 7
     */
-    checkIn(mesh.cells, Tetrahedron({1, 0, 2, 5}, {0, 1, 3, 9}));
-    checkIn(mesh.cells, Tetrahedron({0, 2, 3, 7}, {2, 5, 4, 10}));
-    checkIn(mesh.cells, Tetrahedron({2, 5, 6, 7}, {11, 12, 13, 15}));
-    checkIn(mesh.cells, Tetrahedron({5, 7, 0, 4}, {8, 6, 7, 14}));
-    checkIn(mesh.cells, Tetrahedron({5, 2, 0, 7}, {3, 4, 8, 12}));
+    // checkIn(mesh.cells, BASIC_MESH.cells[0]);
+    // checkIn(mesh.cells, BASIC_MESH.cells[1]);
+    // checkIn(mesh.cells, BASIC_MESH.cells[2]);
+    // checkIn(mesh.cells, BASIC_MESH.cells[3]);
+    // checkIn(mesh.cells, BASIC_MESH.cells[4]);
+    checkSimilar(mesh.cells, BASIC_MESH.cells, "Cells");
 
     /*
       0 0 1 2
@@ -73,20 +73,21 @@ TEST_F(TetgenReaderTest, BasicReadMesh)
      14 7 4 5
      15 5 6 7
     */
-    checkIn(mesh.faces, Face({0, 1, 2}, {0, -1}));
-    checkIn(mesh.faces, Face({0, 1, 5}, {0, -1}));
-    checkIn(mesh.faces, Face({2, 3, 0}, {1, -1}));
-    checkIn(mesh.faces, Face({0, 5, 2}, {0, 4}));
-    checkIn(mesh.faces, Face({0, 7, 2}, {1, 4}));
-    checkIn(mesh.faces, Face({7, 3, 0}, {1, -1}));
-    checkIn(mesh.faces, Face({5, 4, 0}, {3, -1}));
-    checkIn(mesh.faces, Face({0, 4, 7}, {3, -1}));
-    checkIn(mesh.faces, Face({0, 5, 7}, {3, 4}));
-    checkIn(mesh.faces, Face({2, 1, 5}, {0, -1}));
-    checkIn(mesh.faces, Face({2, 3, 7}, {1, -1}));
-    checkIn(mesh.faces, Face({5, 6, 2}, {2, -1}));
-    checkIn(mesh.faces, Face({5, 2, 7}, {2, 4}));
-    checkIn(mesh.faces, Face({7, 6, 2}, {2, -1}));
-    checkIn(mesh.faces, Face({7, 4, 5}, {3, -1}));
-    checkIn(mesh.faces, Face({5, 6, 7}, {2, -1}));
+    // checkIn(mesh.faces, BASIC_MESH.faces[0]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[1]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[2]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[3]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[4]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[5]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[6]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[7]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[8]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[9]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[10]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[11]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[12]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[13]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[14]);
+    // checkIn(mesh.faces, BASIC_MESH.faces[15]);
+    checkSimilar(mesh.faces, BASIC_MESH.faces, "Faces");
 }

@@ -1,6 +1,7 @@
 #include "utils.h"
-#include <set>
 #include <algorithm>
+#include <set>
+
 
 using namespace Polylla;
 using namespace std;
@@ -114,47 +115,33 @@ void labelCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
         info->seeds.push_back(ti);
     }
 
-    std::sort(info->seeds.begin(), info->seeds.end(), [&](int i, int j) { return info->cavities[i].radius < info->cavities[j].radius; });
+    std::sort(info->seeds.begin(), info->seeds.end(),
+              [&](int i, int j) { return info->cavities[i].radius < info->cavities[j].radius; });
 
     info->owners = vector<int>(mesh.cells.size(), -1);
 }
 
-void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
+void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
+{
     DepthFirstSearch dfs(&mesh, info);
 
     // Copy vertices from the original mesh
     result->vertices = mesh.vertices;
+    result->faces = mesh.faces;
     result->tetras = mesh.cells;
 
-    for (int ti : info->seeds) {
-        if (info->owners[ti] != -1) continue;
+    for (int ti : info->seeds)
+    {
+        if (info->owners[ti] != -1)
+            continue;
 
         set<int> uniquePoints;
-        vector<int> originalFaces;
+        vector<int> faces;
         vector<int> tetras;
-        dfs(ti, ti, &uniquePoints, &originalFaces, &tetras);
+        dfs(ti, ti, &uniquePoints, &faces, &tetras);
 
-        // Only create polyhedron if we have valid data
-        if (!uniquePoints.empty() && !tetras.empty()) {
-            // Create new faces for this polyhedron
-            vector<int> newFaceIndices;
-            for (int fi : originalFaces) {
-                if (fi >= 0 && fi < static_cast<int>(mesh.faces.size())) {
-                    const Face& originalFace = mesh.faces[fi];
-                    
-                    // Create a new face in the result
-                    Face newFace = originalFace;
-                    result->faces.push_back(newFace);
-                    newFaceIndices.push_back(result->faces.size() - 1);
-                }
-            }
-
-            // If we have faces, create the polyhedron
-            if (!newFaceIndices.empty()) {
-                vector<int> points(uniquePoints.begin(), uniquePoints.end());
-                result->cells.emplace_back(points, newFaceIndices, tetras);
-            }
-        }
+        vector<int> points(uniquePoints.begin(), uniquePoints.end());
+        result->cells.emplace_back(points, faces, tetras);
     }
 };
 

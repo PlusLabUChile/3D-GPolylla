@@ -154,5 +154,12 @@ bool Polyhedron::operator==(const Polyhedron &other) const
     std::ranges::sort(sorted_cells);
     std::ranges::sort(other_sorted_cells);
 
-    return sorted_vertices == other_sorted_vertices;
+    std::vector<int> sorted_faces = faces;
+    std::vector<int> other_sorted_faces = other.faces;
+
+    std::ranges::sort(sorted_faces);
+    std::ranges::sort(other_sorted_faces);
+
+    return sorted_vertices == other_sorted_vertices && sorted_faces == other_sorted_faces &&
+           sorted_cells == other_sorted_cells;
 }
