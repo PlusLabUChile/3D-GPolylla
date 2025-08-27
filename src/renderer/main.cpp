@@ -1,533 +1,1705 @@
-// Dear ImGui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context
-// creation, etc.)
+// Dear ImGui: Application with full layout - navbar, viewport, sidebar, and docking
+// Features:
+// - Dockable windows with ImGui docking branch
+// - Main viewport for texture rendering
+// - Navigation bar with menu items
+// - Sidebar with tools and properties
+// - Demo window for ImGui examples
+#include "imgui_internal.h"
+#include <glad/gl.h>
 
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
+#include <GLFW/glfw3.h>
 
-#include <cmath>
-#include <fstream>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <iostream>
-#include <sstream>
-#include <stdio.h>
-#include <string>
-#include <vector>
 
-#define GL_SILENCE_DEPRECATION
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <stdio.h>
+#include <unordered_map>
+#include <optional>
+#include <random>
+
+#include <gpolylla/polylla.h>
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-#include <glad/gl.h>
 
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
+#define EPSILON 0.00001f
 
 static void glfw_error_callback(int error, const char *description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-// Camera class for handling movement and view
-class Camera
+// Forward declarations for mouse callbacks - will be defined after app::State
+static void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
+
+glm::vec3 toVec3(const Polylla::Vertex &vertex)
 {
-  public:
-    Eigen::Vector3f position;
-    Eigen::Vector3f front;
-    Eigen::Vector3f up;
-    Eigen::Vector3f right;
-    Eigen::Vector3f worldUp;
+    return glm::vec3(vertex.x(), vertex.y(), vertex.z());
+}
 
-    float yaw;
-    float pitch;
-    float movementSpeed;
-    float mouseSensitivity;
+namespace render
+{
 
-    Camera(Eigen::Vector3f pos = Eigen::Vector3f(0.0f, 0.0f, 3.0f),
-           Eigen::Vector3f worldUpVec = Eigen::Vector3f(0.0f, 1.0f, 0.0f), float yawAngle = -90.0f,
-           float pitchAngle = 0.0f)
-        : position(pos), worldUp(worldUpVec), yaw(yawAngle), pitch(pitchAngle), movementSpeed(2.5f),
-          mouseSensitivity(0.1f)
+struct Camera
+{
+    glm::vec3 position;
+    glm::vec3 target;
+    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    // Orbit camera parameters
+    float distance = 5.0f;
+    float azimuth = 0.0f;   // horizontal rotation (around Y axis)
+    float elevation = 0.3f; // vertical rotation (up/down)
+
+    // Camera constraints
+    float minDistance = 1.0f;
+    float maxDistance = 50.0f;
+    float minElevation = -1.5f; // about -85 degrees
+    float maxElevation = 1.5f;  // about +85 degrees
+
+    glm::mat4 view()
     {
-        updateCameraVectors();
+        return glm::lookAt(position, target, up);
     }
 
-    Eigen::Matrix4f getViewMatrix()
+    void update()
     {
-        Eigen::Vector3f f = front.normalized();
-        Eigen::Vector3f s = f.cross(up).normalized();
-        Eigen::Vector3f u = s.cross(f);
+        // Calculate camera position using spherical coordinates
+        float x = target.x + distance * cos(elevation) * cos(azimuth);
+        float y = target.y + distance * sin(elevation);
+        float z = target.z + distance * cos(elevation) * sin(azimuth);
 
-        Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
-        view(0, 0) = s.x();
-        view(1, 0) = s.y();
-        view(2, 0) = s.z();
-        view(0, 1) = u.x();
-        view(1, 1) = u.y();
-        view(2, 1) = u.z();
-        view(0, 2) = -f.x();
-        view(1, 2) = -f.y();
-        view(2, 2) = -f.z();
-        view(0, 3) = -s.dot(position);
-        view(1, 3) = -u.dot(position);
-        view(2, 3) = f.dot(position);
-
-        return view;
+        position = glm::vec3(x, y, z);
     }
+};
 
-    void processKeyboard(int direction, float deltaTime)
+struct Shader
+{
+    GLuint program = 0;
+    std::unordered_map<std::string, GLint> locations;
+
+    void init(const char *vertexShaderSource, const char *fragmentShaderSource)
     {
-        float velocity = movementSpeed * deltaTime;
-        if (direction == 0) // Forward (W)
-            position += front * velocity;
-        if (direction == 1) // Backward (S)
-            position -= front * velocity;
-        if (direction == 2) // Left (A)
-            position -= right * velocity;
-        if (direction == 3) // Right (D)
-            position += right * velocity;
-    }
+        GLuint vertexShader = compileSource(vertexShaderSource, GL_VERTEX_SHADER);
+        GLuint fragmentShader = compileSource(fragmentShaderSource, GL_FRAGMENT_SHADER);
 
-    void processMouseMovement(float xoffset, float yoffset, bool constrainPitch = true)
-    {
-        xoffset *= mouseSensitivity;
-        yoffset *= mouseSensitivity;
-
-        yaw += xoffset;
-        pitch += yoffset;
-
-        if (constrainPitch)
+        if (vertexShader == 0 || fragmentShader == 0)
         {
-            if (pitch > 89.0f)
-                pitch = 89.0f;
-            if (pitch < -89.0f)
-                pitch = -89.0f;
+            return;
         }
 
-        updateCameraVectors();
+        GLuint aProgram = glCreateProgram();
+        glAttachShader(aProgram, vertexShader);
+        glAttachShader(aProgram, fragmentShader);
+        glLinkProgram(aProgram);
+
+        GLint success;
+        glGetProgramiv(aProgram, GL_LINK_STATUS, &success);
+        if (!success)
+        {
+            char infoLog[512];
+            glGetProgramInfoLog(aProgram, 512, nullptr, infoLog);
+            std::cerr << "Shader linking failed: " << infoLog << std::endl;
+            return;
+        }
+
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+
+        program = aProgram;
+        return;
+    }
+
+    void set(const char *name, const glm::mat4 &matrix)
+    {
+        glUniformMatrix4fv(getLocation(name), 1, GL_FALSE, glm::value_ptr(matrix));
+    }
+
+    void set(const char *name, const glm::mat3 &matrix)
+    {
+        glUniformMatrix3fv(getLocation(name), 1, GL_FALSE, glm::value_ptr(matrix));
+    }
+
+    void set(const char *name, const glm::vec3 &vector)
+    {
+        glUniform3fv(getLocation(name), 1, glm::value_ptr(vector));
+    }
+
+    void set(const char *name, int value)
+    {
+        glUniform1i(getLocation(name), value);
+    }
+
+    void set(const char *name, float value)
+    {
+        glUniform1f(getLocation(name), value);
+    }
+
+    void use()
+    {
+        glUseProgram(program);
+    }
+
+    void end()
+    {
+        if (program != 0)
+        {
+            glDeleteProgram(program);
+        }
     }
 
   private:
-    void updateCameraVectors()
+    GLint getLocation(const char *name)
     {
-        Eigen::Vector3f frontVec;
-        frontVec.x() = cos(yaw * M_PI / 180.0f) * cos(pitch * M_PI / 180.0f);
-        frontVec.y() = sin(pitch * M_PI / 180.0f);
-        frontVec.z() = sin(yaw * M_PI / 180.0f) * cos(pitch * M_PI / 180.0f);
-        front = frontVec.normalized();
+        if (locations.find(name) == locations.end())
+        {
+            locations[name] = glGetUniformLocation(program, name);
+        }
+        return locations[name];
+    }
 
-        right = front.cross(worldUp).normalized();
-        up = right.cross(front).normalized();
+    GLuint compileSource(const char *source, GLenum type)
+    {
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &source, nullptr);
+        glCompileShader(shader);
+
+        GLint success;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+            char infoLog[512];
+            glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+            std::cerr << "Shader compilation failed: " << infoLog << std::endl;
+            return 0;
+        }
+
+        return shader;
     }
 };
 
-// Global variables for input handling
-Camera camera(Eigen::Vector3f(3.0f, 3.0f, 3.0f));
-bool keys[1024] = {false};
-bool firstMouse = true;
-float lastX = 640.0f;
-float lastY = 400.0f;
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-bool mouseCaptured = true;
-
-// Input callbacks
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode)
+struct Frame
 {
-    // Handle our custom keys first
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, true);
-        return; // Don't process other keys when exiting
-    }
+    int width = 800;
+    int height = 600;
+    float backgroundColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
 
-    if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
-    {
-        mouseCaptured = !mouseCaptured;
-        if (mouseCaptured)
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            firstMouse = true;
-            // Reset mouse position to center when capturing
-            int width, height;
-            glfwGetWindowSize(window, &width, &height);
-            lastX = width / 2.0f;
-            lastY = height / 2.0f;
-        }
-        else
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
-        return; // Don't process TAB for ImGui
-    }
+    GLuint buffer = 0;
+    GLuint colorTexture = 0;
+    GLuint renderBuffer = 0;
 
-    // Only handle camera movement keys if ImGui doesn't want keyboard input
-    ImGuiIO &io = ImGui::GetIO();
-    if (!io.WantCaptureKeyboard)
+    void init()
     {
-        if (key >= 0 && key < 1024)
-        {
-            if (action == GLFW_PRESS)
-                keys[key] = true;
-            else if (action == GLFW_RELEASE)
-                keys[key] = false;
-        }
-    }
-}
+        // Clean up existing framebuffer
+        end();
 
-void mouse_callback(GLFWwindow *window, double xpos, double ypos)
-{
-    ImGuiIO &io = ImGui::GetIO();
+        // Create framebuffer
+        glGenFramebuffers(1, &buffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, buffer);
 
-    // Only handle mouse movement for camera if ImGui doesn't want it and mouse is captured
-    if (!io.WantCaptureMouse && mouseCaptured)
-    {
-        if (firstMouse)
+        // Create color texture
+        glGenTextures(1, &colorTexture);
+        glBindTexture(GL_TEXTURE_2D, colorTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+
+        // Create depth renderbuffer
+        glGenRenderbuffers(1, &renderBuffer);
+        glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
+
+        // Check framebuffer completeness
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-            lastX = static_cast<float>(xpos);
-            lastY = static_cast<float>(ypos);
-            firstMouse = false;
+            std::cerr << "Framebuffer not complete!" << std::endl;
         }
 
-        float xoffset = static_cast<float>(xpos) - lastX;
-        float yoffset = lastY - static_cast<float>(ypos); // Reversed since y-coordinates go from bottom to top
-
-        lastX = static_cast<float>(xpos);
-        lastY = static_cast<float>(ypos);
-
-        camera.processMouseMovement(xoffset, yoffset);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-}
 
-void processInput()
-{
-    ImGuiIO &io = ImGui::GetIO();
-
-    // Only process camera movement if ImGui doesn't want keyboard input
-    if (!io.WantCaptureKeyboard)
+    void bind()
     {
-        if (keys[GLFW_KEY_W])
-            camera.processKeyboard(0, deltaTime);
-        if (keys[GLFW_KEY_S])
-            camera.processKeyboard(1, deltaTime);
-        if (keys[GLFW_KEY_A])
-            camera.processKeyboard(2, deltaTime);
-        if (keys[GLFW_KEY_D])
-            camera.processKeyboard(3, deltaTime);
+        glBindFramebuffer(GL_FRAMEBUFFER, buffer);
+        glViewport(0, 0, width, height);
+        glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
-}
 
-// Shader utilities
-std::string readFile(const std::string &filePath)
-{
-    std::ifstream file(filePath);
-    if (!file.is_open())
+    void unbind()
     {
-        std::cerr << "Failed to open file: " << filePath << std::endl;
-        return "";
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
-}
-
-GLuint compileShader(const std::string &source, GLenum shaderType)
-{
-    GLuint shader = glCreateShader(shaderType);
-    const char *src = source.c_str();
-    glShaderSource(shader, 1, &src, nullptr);
-    glCompileShader(shader);
-
-    // Check compilation status
-    GLint success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success)
+    glm::mat4 projection()
     {
-        GLchar infoLog[512];
-        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        std::cerr << "Shader compilation failed: " << infoLog << std::endl;
-        glDeleteShader(shader);
-        return 0;
+        float aspect = (float)width / (float)height;
+        return glm::perspective(glm::radians(60.0f), aspect, 0.1f, 100000.0f);
     }
 
-    return shader;
-}
-
-GLuint createShaderProgram(const std::string &vertexPath, const std::string &fragmentPath)
-{
-    std::string vertexSource = readFile(vertexPath);
-    std::string fragmentSource = readFile(fragmentPath);
-
-    if (vertexSource.empty() || fragmentSource.empty())
+    void end()
     {
-        return 0;
+        if (buffer != 0)
+        {
+            glDeleteFramebuffers(1, &buffer);
+            glDeleteTextures(1, &colorTexture);
+            glDeleteRenderbuffers(1, &renderBuffer);
+        }
     }
+};
 
-    GLuint vertexShader = compileShader(vertexSource, GL_VERTEX_SHADER);
-    GLuint fragmentShader = compileShader(fragmentSource, GL_FRAGMENT_SHADER);
-
-    if (vertexShader == 0 || fragmentShader == 0)
+struct Layout
+{
+    struct Attribute
     {
-        return 0;
-    }
+        int type;
+        int size;
+        int offset;
+    };
 
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
+    GLuint vao = 0;
+    int stride = 0;
 
-    // Check linking status
-    GLint success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success)
+    std::vector<Attribute> attributes;
+
+    void init()
     {
-        GLchar infoLog[512];
-        glGetProgramInfoLog(program, 512, nullptr, infoLog);
-        std::cerr << "Shader program linking failed: " << infoLog << std::endl;
-        glDeleteProgram(program);
-        return 0;
+        glGenVertexArrays(1, &vao);
     }
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    void bind()
+    {
+        glBindVertexArray(vao);
+    }
 
-    return program;
-}
+    void unbind()
+    {
+        glBindVertexArray(0);
+    }
 
-// Matrix utility functions using Eigen
-Eigen::Matrix4f createPerspectiveMatrix(float fov, float aspect, float near, float far)
+    template <typename T> void push(int size);
+
+    template <> void push<float>(int size)
+    {
+        attributes.push_back({GL_FLOAT, size, stride});
+        stride += size * sizeof(float);
+    }
+
+    void build()
+    {
+        bind();
+
+        int location = 0;
+        for (auto [type, size, offset] : attributes)
+        {
+            glEnableVertexAttribArray(location);
+            glVertexAttribPointer(location, size, type, GL_FALSE, stride, reinterpret_cast<void *>(offset));
+            location++;
+        }
+
+        unbind();
+    }
+
+    void end()
+    {
+        glDeleteVertexArrays(1, &vao);
+    }
+};
+
+struct Buffer
 {
-    Eigen::Matrix4f perspective = Eigen::Matrix4f::Zero();
-    float tanHalfFov = tan(fov / 2.0f);
+    Layout layout;
+    GLuint vbo = 0;
+    GLuint ebo = 0;
 
-    perspective(0, 0) = 1.0f / (aspect * tanHalfFov);
-    perspective(1, 1) = 1.0f / tanHalfFov;
-    perspective(2, 2) = -(far + near) / (far - near);
-    perspective(2, 3) = -(2.0f * far * near) / (far - near);
-    perspective(3, 2) = -1.0f;
-
-    return perspective;
-}
-
-Eigen::Matrix4f createViewMatrix(const Eigen::Vector3f &eye, const Eigen::Vector3f &center, const Eigen::Vector3f &up)
-{
-    Eigen::Vector3f f = (center - eye).normalized();
-    Eigen::Vector3f s = f.cross(up).normalized();
-    Eigen::Vector3f u = s.cross(f);
-
-    Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
-    view(0, 0) = s.x();
-    view(1, 0) = s.y();
-    view(2, 0) = s.z();
-    view(0, 1) = u.x();
-    view(1, 1) = u.y();
-    view(2, 1) = u.z();
-    view(0, 2) = -f.x();
-    view(1, 2) = -f.y();
-    view(2, 2) = -f.z();
-    view(0, 3) = -s.dot(eye);
-    view(1, 3) = -u.dot(eye);
-    view(2, 3) = f.dot(eye);
-
-    return view;
-}
-
-// Cube geometry data
-struct CubeData
-{
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
-    CubeData()
+    void init(std::vector<float> vertices, std::vector<unsigned int> indices)
     {
-        // Cube vertices with positions and normals (6 floats per vertex: x,y,z,nx,ny,nz)
-        vertices = {
-            // Front face
-            -0.5f,
-            -0.5f,
-            0.5f,
-            0.0f,
-            0.0f,
-            1.0f,
-            0.5f,
-            -0.5f,
-            0.5f,
-            0.0f,
-            0.0f,
-            1.0f,
-            0.5f,
-            0.5f,
-            0.5f,
-            0.0f,
-            0.0f,
-            1.0f,
-            -0.5f,
-            0.5f,
-            0.5f,
-            0.0f,
-            0.0f,
-            1.0f,
+        this->vertices = vertices;
+        this->indices = indices;
 
-            // Back face
-            -0.5f,
-            -0.5f,
-            -0.5f,
-            0.0f,
-            0.0f,
-            -1.0f,
-            0.5f,
-            -0.5f,
-            -0.5f,
-            0.0f,
-            0.0f,
-            -1.0f,
-            0.5f,
-            0.5f,
-            -0.5f,
-            0.0f,
-            0.0f,
-            -1.0f,
-            -0.5f,
-            0.5f,
-            -0.5f,
-            0.0f,
-            0.0f,
-            -1.0f,
+        layout.init();
+        buildLayout(); // Define layout before building
 
-            // Left face
-            -0.5f,
-            -0.5f,
-            -0.5f,
-            -1.0f,
-            0.0f,
-            0.0f,
-            -0.5f,
-            -0.5f,
-            0.5f,
-            -1.0f,
-            0.0f,
-            0.0f,
-            -0.5f,
-            0.5f,
-            0.5f,
-            -1.0f,
-            0.0f,
-            0.0f,
-            -0.5f,
-            0.5f,
-            -0.5f,
-            -1.0f,
-            0.0f,
-            0.0f,
+        layout.bind();
 
-            // Right face
-            0.5f,
-            -0.5f,
-            -0.5f,
-            1.0f,
-            0.0f,
-            0.0f,
-            0.5f,
-            -0.5f,
-            0.5f,
-            1.0f,
-            0.0f,
-            0.0f,
-            0.5f,
-            0.5f,
-            0.5f,
-            1.0f,
-            0.0f,
-            0.0f,
-            0.5f,
-            0.5f,
-            -0.5f,
-            1.0f,
-            0.0f,
-            0.0f,
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
-            // Top face
-            -0.5f,
-            0.5f,
-            -0.5f,
-            0.0f,
-            1.0f,
-            0.0f,
-            -0.5f,
-            0.5f,
-            0.5f,
-            0.0f,
-            1.0f,
-            0.0f,
-            0.5f,
-            0.5f,
-            0.5f,
-            0.0f,
-            1.0f,
-            0.0f,
-            0.5f,
-            0.5f,
-            -0.5f,
-            0.0f,
-            1.0f,
-            0.0f,
+        glGenBuffers(1, &ebo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-            // Bottom face
-            -0.5f,
-            -0.5f,
-            -0.5f,
-            0.0f,
-            -1.0f,
-            0.0f,
-            -0.5f,
-            -0.5f,
-            0.5f,
-            0.0f,
-            -1.0f,
-            0.0f,
-            0.5f,
-            -0.5f,
-            0.5f,
-            0.0f,
-            -1.0f,
-            0.0f,
-            0.5f,
-            -0.5f,
-            -0.5f,
-            0.0f,
-            -1.0f,
-            0.0f,
-        };
+        layout.build();
+        layout.unbind();
+    }
 
-        // Indices for the cube (2 triangles per face)
-        indices = {// Front face
-                   0, 1, 2, 2, 3, 0,
-                   // Back face
-                   4, 6, 5, 6, 4, 7,
-                   // Left face
-                   8, 9, 10, 10, 11, 8,
-                   // Right face
-                   12, 14, 13, 14, 12, 15,
-                   // Top face
-                   16, 17, 18, 18, 19, 16,
-                   // Bottom face
-                   20, 22, 21, 22, 20, 23};
+    void draw()
+    {
+        layout.bind();
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        layout.unbind();
+    }
+
+    void end()
+    {
+        glDeleteBuffers(1, &vbo);
+        glDeleteBuffers(1, &ebo);
+        layout.end();
+    }
+
+  protected:
+    virtual void buildLayout()
+    {
+        layout.push<float>(3);
     }
 };
 
-// Main code
-int main(int, char **)
+struct CellBuffer : public Buffer
 {
+    void init(const Polylla::Tetrahedron &cell, const Polylla::Mesh &mesh)
+    {
+        std::vector<float> vertices;
+        std::vector<unsigned int> indices;
+
+        int i = 0;
+        for (auto fi : cell.faces)
+        {
+            float color[3] = {rand() % 255 / 255.0f, rand() % 255 / 255.0f, rand() % 255 / 255.0f};
+            for (auto vi : mesh.faces[fi].vertices)
+            {
+                const auto &v = mesh.vertices[vi];
+                vertices.push_back(v.x());
+                vertices.push_back(v.y());
+                vertices.push_back(v.z());
+                vertices.push_back(color[0]);
+                vertices.push_back(color[1]);
+                vertices.push_back(color[2]);
+                indices.push_back(i++);
+            }
+        }
+
+        Buffer::init(vertices, indices);
+    }
+
+    void buildLayout() override
+    {
+        layout.push<float>(3); // Position
+        layout.push<float>(3); // Color
+    }
+};
+
+struct PhongCellBuffer : public Buffer
+{
+    void init(const Polylla::Tetrahedron &cell, const Polylla::Mesh &mesh)
+    {
+        std::vector<float> vertices;
+        std::vector<unsigned int> indices;
+
+        int index = 0;
+        for (int fi = 0; fi < cell.faces.size(); fi++)
+        {
+            // Calculate face normal
+            const auto &face = mesh.faces[cell.faces[fi]];
+
+            auto faceVertices = face.vertices;
+
+            const auto &other = mesh.vertices[cell.vertices[fi]];
+
+            const auto &v0 = mesh.vertices[faceVertices[0]];
+            const auto &v1 = mesh.vertices[faceVertices[1]];
+            const auto &v2 = mesh.vertices[faceVertices[2]];
+
+            glm::vec3 p0(v0.x(), v0.y(), v0.z());
+            glm::vec3 p1(v1.x(), v1.y(), v1.z());
+            glm::vec3 p2(v2.x(), v2.y(), v2.z());
+            glm::vec3 pOther(other.x(), other.y(), other.z());
+
+            glm::vec3 toOther = pOther - p0;
+
+            glm::vec3 normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+            if (glm::dot(normal, toOther) > 0)
+            {
+                normal = -normal;
+                std::ranges::reverse(faceVertices);
+            }
+
+            for (auto vi : faceVertices)
+            {
+                const auto &v = mesh.vertices[vi];
+                // Position
+                vertices.push_back(v.x());
+                vertices.push_back(v.y());
+                vertices.push_back(v.z());
+                // Normal
+                vertices.push_back(normal.x);
+                vertices.push_back(normal.y);
+                vertices.push_back(normal.z);
+
+                indices.push_back(index++);
+            }
+        }
+
+        Buffer::init(vertices, indices);
+    }
+
+    void buildLayout() override
+    {
+        layout.push<float>(3); // Position
+        layout.push<float>(3); // Normal
+    }
+};
+
+struct SphereBuffer : public Buffer
+{
+    void init(float radius = 0.2f, int slices = 16, int stacks = 16)
+    {
+        std::vector<float> vertices;
+        std::vector<unsigned int> indices;
+
+        // Generate sphere vertices
+        for (int i = 0; i <= stacks; ++i)
+        {
+            float phi = M_PI * i / stacks;
+            for (int j = 0; j <= slices; ++j)
+            {
+                float theta = 2.0f * M_PI * j / slices;
+
+                float x = radius * sin(phi) * cos(theta);
+                float y = radius * cos(phi);
+                float z = radius * sin(phi) * sin(theta);
+
+                // Position
+                vertices.push_back(x);
+                vertices.push_back(y);
+                vertices.push_back(z);
+
+                // Normal (same as position for unit sphere)
+                vertices.push_back(x / radius);
+                vertices.push_back(y / radius);
+                vertices.push_back(z / radius);
+            }
+        }
+
+        // Generate indices
+        for (int i = 0; i < stacks; ++i)
+        {
+            for (int j = 0; j < slices; ++j)
+            {
+                int first = i * (slices + 1) + j;
+                int second = first + slices + 1;
+
+                indices.push_back(first);
+                indices.push_back(second);
+                indices.push_back(first + 1);
+
+                indices.push_back(second);
+                indices.push_back(second + 1);
+                indices.push_back(first + 1);
+            }
+        }
+
+        Buffer::init(vertices, indices);
+    }
+
+    void buildLayout() override
+    {
+        layout.push<float>(3); // Position
+        layout.push<float>(3); // Normal
+    }
+};
+
+struct AABB
+{
+    glm::vec3 min = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 max = glm::vec3(0.0f, 0.0f, 0.0f);
+};
+
+struct Model
+{
+    enum Visibility
+    {
+        VISIBLE,
+        HIDDEN,
+        SELECTED,
+        TRANSPARENT
+    };
+
+    Buffer *buffer = nullptr;
+    Shader *shader = nullptr;
+    Shader *outlinedShader = nullptr;
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+    Visibility visibility = VISIBLE;
+    AABB collider;
+
+    void draw()
+    {
+    }
+};
+
+struct VolumeMesh
+{
+    std::vector<Model> cells;
+    std::vector<std::unique_ptr<Buffer>> buffers;
+
+    void init()
+    {
+    }
+
+    void draw()
+    {
+        for (auto &model : cells)
+        {
+            model.draw();
+        }
+    }
+
+    void end()
+    {
+        for (auto &buffer : buffers)
+        {
+            buffer->end();
+        }
+
+        buffers.clear();
+        cells.clear();
+    }
+};
+
+struct Light
+{
+    glm::vec3 position = glm::vec3(0.0f, 5.0f, 0.0f);
+    glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f);
+    float intensity = 1.0f;
+};
+
+struct RenderSettings
+{
+    bool faceCulling = true;
+    bool wireframe = false;
+    bool showGrid = true;
+    bool showLightSphere = true;
+};
+
+struct Ray
+{
+    glm::vec3 origin;
+    glm::vec3 direction;
+
+    static Ray fromMouse(float screenX, float screenY, int viewportWidth, int viewportHeight, const glm::mat4 &projection, const glm::mat4 &view)
+    {
+        // Convert screen coordinates to normalized device coordinates
+        float x = (2.0f * screenX) / viewportWidth - 1.0f;
+        float y = 1.0f - (2.0f * screenY) / viewportHeight;
+
+        // Create projection and view matrices
+        glm::mat4 viewProjection = projection * view;
+        glm::mat4 invViewProjection = glm::inverse(viewProjection);
+
+        // Transform to world coordinates
+        glm::vec4 nearPoint = invViewProjection * glm::vec4(x, y, -1.0f, 1.0f);
+        glm::vec4 farPoint = invViewProjection * glm::vec4(x, y, 1.0f, 1.0f);
+
+        nearPoint /= nearPoint.w;
+        farPoint /= farPoint.w;
+
+        Ray ray;
+        ray.origin = glm::vec3(nearPoint);
+        ray.direction = glm::normalize(glm::vec3(farPoint) - glm::vec3(nearPoint));
+
+        return ray;
+    }
+
+    std::optional<glm::vec3> intersect(const AABB &box) const
+    {
+        // Slab method for Ray-AABB intersection
+        // box must have .min and .max as glm::vec3
+        float tmin = (box.min.x - origin.x) / direction.x;
+        float tmax = (box.max.x - origin.x) / direction.x;
+        if (tmin > tmax) std::swap(tmin, tmax);
+
+        float tymin = (box.min.y - origin.y) / direction.y;
+        float tymax = (box.max.y - origin.y) / direction.y;
+        if (tymin > tymax) std::swap(tymin, tymax);
+
+        if ((tmin > tymax) || (tymin > tmax))
+            return {};
+
+        if (tymin > tmin)
+            tmin = tymin;
+        if (tymax < tmax)
+            tmax = tymax;
+
+        float tzmin = (box.min.z - origin.z) / direction.z;
+        float tzmax = (box.max.z - origin.z) / direction.z;
+        if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+        if ((tmin > tzmax) || (tzmin > tmax))
+            return {};
+
+        if (tzmin > tmin)
+            tmin = tzmin;
+        if (tzmax < tmax)
+            tmax = tzmax;
+
+        // Only consider intersection in the positive ray direction
+        if (tmax < EPSILON)
+            return {};
+
+        float t = tmin;
+        if (t < EPSILON) t = tmax; // If tmin is behind, use tmax (exit point)
+
+        if (t < EPSILON)
+            return {};
+
+        return origin + direction * t;
+    }
+
+    std::optional<glm::vec3> intersect(const Polylla::Face &face, const Polylla::Mesh &mesh) const
+    {
+        using namespace glm;
+
+        vec3 a = toVec3(mesh.vertices[face.vertices[0]]);
+        vec3 b = toVec3(mesh.vertices[face.vertices[1]]);
+        vec3 c = toVec3(mesh.vertices[face.vertices[2]]);
+
+        // Source: https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+        vec3 edge1 = b - a;
+        vec3 edge2 = c - a;
+        vec3 ray_cross_e2 = cross(direction, edge2);
+        float det = dot(edge1, ray_cross_e2);
+
+        if (det > -EPSILON && det < EPSILON)
+            return {}; // This ray is parallel to this triangle.
+
+        float inv_det = 1.0 / det;
+        vec3 s = origin - a;
+        float u = inv_det * dot(s, ray_cross_e2);
+
+        if ((u < 0 && abs(u) > EPSILON) || (u > 1 && abs(u - 1) > EPSILON))
+            return {};
+
+        vec3 s_cross_e1 = cross(s, edge1);
+        float v = inv_det * dot(direction, s_cross_e1);
+
+        if ((v < 0 && abs(v) > EPSILON) || (u + v > 1 && abs(u + v - 1) > EPSILON))
+            return {};
+
+        // At this stage we can compute t to find out where the intersection point is on the line.
+        float t = inv_det * dot(edge2, s_cross_e1);
+
+        if (t > EPSILON) // ray intersection
+        {
+            return vec3(origin + direction * t);
+        }
+        else // This means that there is a line intersection but not a ray intersection.
+            return {};
+    }
+
+    std::optional<glm::vec3> intersect(const Polylla::Tetrahedron &tetrahedron, const Polylla::Mesh &mesh) const
+    {
+        for (const auto &fi : tetrahedron.faces)
+        {
+            const auto &face = mesh.faces[fi];
+            std::optional<glm::vec3> intersection = intersect(face, mesh);
+            if (intersection)
+                return intersection;
+        }
+        return {};
+    }
+};
+
+// struct Selection
+// {
+//     int selectedCellIndex = -1; // -1 means no selection
+//     glm::vec3 selectedCellCenter = glm::vec3(0.0f);
+//     bool isHighlighted = false;
+// };
+
+static struct State
+{
+    // Viewport texture
+    float backgroundColor[4] = {0.2f, 0.2f, 0.2f, 1.0f};
+
+    // OpenGL rendering state
+    Frame frame;
+    Camera camera;
+    Light light;
+    RenderSettings renderSettings;
+    int selectedCellIndex = -1;
+    glm::vec3 selectedCellCenter = glm::vec3(0.0f);
+    std::unordered_map<std::string, Shader> shaders;
+    std::unordered_map<std::string, Model> models;
+    VolumeMesh mesh;
+
+} state;
+
+// Initialize grid geometry
+void initializeGrid(Shader &shader)
+{
+    // Create a large quad for the infinite plane
+    std::vector<float> gridVertices = {
+        // Positions          // Colors (not used, but needed for shader)
+        -100.0f, 0.0f, -100.0f, 100.0f, 0.0f, -100.0f, 100.0f, 0.0f, 100.0f, -100.0f, 0.0f, 100.0f,
+    };
+
+    std::vector<unsigned int> gridIndices = {0, 1, 2, 2, 3, 0};
+
+    state.models["grid"] = Model();
+    state.models["grid"].buffer = new Buffer();
+    state.models["grid"].buffer->init(gridVertices, gridIndices);
+    state.models["grid"].shader = &shader;
+    state.models["grid"].color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+
+    // Generate and bind VAO
+    // glGenVertexArrays(1, &state.grid.vao);
+    // glBindVertexArray(state.grid.vao);
+
+    // // Generate and bind VBO
+    // glGenBuffers(1, &state.grid.vbo);
+    // glBindBuffer(GL_ARRAY_BUFFER, state.grid.vbo);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(gridVertices), gridVertices, GL_STATIC_DRAW);
+
+    // // Generate and bind EBO
+    // glGenBuffers(1, &state.grid.ebo);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, state.grid.ebo);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gridIndices), gridIndices, GL_STATIC_DRAW);
+
+    // // Position attribute
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    // glEnableVertexAttribArray(0);
+
+    // glBindVertexArray(0);
+}
+
+void init()
+{
+    state.frame.init();
+    // Load grid shader from files
+    state.shaders["grid"] = Shader();
+    std::ifstream gridVertexShaderFile("shaders/grid.vs");
+    std::ifstream gridFragmentShaderFile("shaders/grid.fs");
+    std::string gridVertexShaderSource(std::istreambuf_iterator<char>(gridVertexShaderFile), {});
+    std::string gridFragmentShaderSource(std::istreambuf_iterator<char>(gridFragmentShaderFile), {});
+    state.shaders["grid"].init(gridVertexShaderSource.c_str(), gridFragmentShaderSource.c_str());
+
+    // Load cell shader from files
+    state.shaders["basic"] = Shader();
+    std::ifstream cellVertexShaderFile("shaders/cell.vs");
+    std::ifstream cellFragmentShaderFile("shaders/cell.fs");
+    std::string cellVertexShaderSource(std::istreambuf_iterator<char>(cellVertexShaderFile), {});
+    std::string cellFragmentShaderSource(std::istreambuf_iterator<char>(cellFragmentShaderFile), {});
+    state.shaders["basic"].init(cellVertexShaderSource.c_str(), cellFragmentShaderSource.c_str());
+
+    // Load phong shader from files
+    state.shaders["phong"] = Shader();
+    std::ifstream phongVertexShaderFile("shaders/phong.vs");
+    std::ifstream phongFragmentShaderFile("shaders/phong.fs");
+    std::string phongVertexShaderSource(std::istreambuf_iterator<char>(phongVertexShaderFile), {});
+    std::string phongFragmentShaderSource(std::istreambuf_iterator<char>(phongFragmentShaderFile), {});
+    state.shaders["phong"].init(phongVertexShaderSource.c_str(), phongFragmentShaderSource.c_str());
+
+    initializeGrid(state.shaders["grid"]);
+
+    // Initialize light sphere
+    state.models["lightSphere"] = Model();
+    auto sphereBuffer = new SphereBuffer();
+    sphereBuffer->init(0.1f, 16, 16);
+    state.models["lightSphere"].buffer = sphereBuffer;
+    state.models["lightSphere"].shader = &state.shaders["phong"];
+
+    // state.models["cell"].buffer->init(cellVertices, cellIndices);
+    // state.models["cell"].shader = &state.shaders["cell"];
+    // state.models["cell"].color = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    // Camera will be initialized by controller
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Enable stencil test for outlining
+    glEnable(GL_STENCIL_TEST);
+
+    // Enable face culling
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK); // Cull back faces
+    glFrontFace(GL_CCW); // Counter-clockwise vertices define front faces
+}
+
+void render()
+{
+    state.frame.bind();
+
+    // Clear color, depth, and stencil buffers
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glStencilMask(0x00); // Enable writing to stencil buffer
+
+    // Camera will be updated by external controller (handled in app layer)
+
+    for (auto &shader : state.shaders)
+    {
+        shader.second.use();
+        shader.second.set("view", state.camera.view());
+        shader.second.set("projection", state.frame.projection());
+    }
+
+    // Render grid first with depth offset to ensure it's always behind the mesh
+    // glEnable(GL_POLYGON_OFFSET_FILL);
+    // glPolygonOffset(1.0f, 1.0f); // Push grid further back
+
+    // // Set grid-specific uniforms
+    // state.shaders["grid"].use();
+    // state.shaders["grid"].set("showGrid", state.renderSettings.showGrid);
+    // state.shaders["grid"].set("lineWidth", 0.01f);
+    // state.shaders["grid"].set("gridSize", 1.0f);
+
+    // state.models["grid"].model = glm::mat4(1.0f);
+    // state.models["grid"].draw();
+
+    // state.models["grid"].model =
+    //     glm::rotate(state.models["grid"].model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    // state.models["grid"].draw();
+
+    // glDisable(GL_POLYGON_OFFSET_FILL);
+
+    // Render the mesh with Phong lighting (will appear in front of grid)
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    state.shaders["phong"].use();
+
+    // Set up global Phong lighting uniforms
+    // Material properties
+    state.shaders["phong"].set("ambientStrength", 0.3f);
+    state.shaders["phong"].set("diffuseStrength", 1.0f);
+    state.shaders["phong"].set("specularStrength", 0.5f);
+    state.shaders["phong"].set("shininess", 32.0f);
+
+    // Light properties from state
+    state.shaders["phong"].set("lightPos", state.light.position);
+    state.shaders["phong"].set("lightColor", state.light.color * state.light.intensity);
+    state.shaders["phong"].set("viewPos", state.camera.position);
+
+
+    // First render the selected cell to stencil buffer
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilMask(0xFF);
+    glDisable(GL_DEPTH_TEST);
+    for (auto &cell : state.mesh.cells)
+    {
+        if (cell.visibility == Model::SELECTED)
+        {
+            state.shaders["phong"].use();
+            state.shaders["phong"].set("model", cell.model);
+            state.shaders["phong"].set("materialColor", cell.color);
+            cell.buffer->draw();
+        }
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glStencilMask(0x00);
+    for (auto &cell : state.mesh.cells)
+    {
+        if (cell.visibility == Model::HIDDEN)
+            continue;
+
+        cell.color.a = 1.0f;
+        if (cell.visibility == Model::TRANSPARENT)
+            cell.color.a = 0.5f;
+
+        state.shaders["phong"].use();
+        state.shaders["phong"].set("model", cell.model);
+        state.shaders["phong"].set("materialColor", cell.color);
+        cell.buffer->draw();
+    }
+
+    if (state.renderSettings.wireframe)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glLineWidth(1.0f);
+        for (auto &cell : state.mesh.cells)
+        {
+            if (cell.visibility == Model::HIDDEN || cell.visibility == Model::TRANSPARENT)
+                continue;
+
+
+            state.shaders["basic"].use();
+            state.shaders["basic"].set("model", cell.model);
+            state.shaders["basic"].set("materialColor", glm::vec3(0.0f, 0.0f, 0.0f));
+            cell.buffer->draw();
+        }
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+    // Then render the outline using the basic shader
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glDisable(GL_DEPTH_TEST);
+    for (auto &cell : state.mesh.cells)
+    {
+        if (cell.visibility == Model::SELECTED)
+        {
+            state.shaders["basic"].use();
+
+            // Create scaling matrix from tetrahedron center
+            glm::mat4 translateToOrigin = glm::translate(glm::mat4(1.0f), -state.selectedCellCenter);
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(1.05f)); // 5% larger
+            glm::mat4 translateBack = glm::translate(glm::mat4(1.0f), state.selectedCellCenter);
+            glm::mat4 scaledModel = translateBack * scale * translateToOrigin * cell.model;
+
+            state.shaders["basic"].set("model", scaledModel);
+            state.shaders["basic"].set("materialColor", glm::vec3(1.0f, 1.0f, 1.0f));
+            cell.buffer->draw();
+
+        }
+    }
+
+    // Restore stencil and depth state
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 0, 0xFF);
+    glEnable(GL_DEPTH_TEST);
+    // state.mesh.draw();
+    // }
+
+    // Render light sphere at light position (if enabled)
+    if (state.renderSettings.showLightSphere)
+    {
+        state.models["lightSphere"].model = glm::mat4(1.0f);
+        state.models["lightSphere"].model = glm::translate(state.models["lightSphere"].model, state.light.position);
+
+        // Set light sphere material to emit light color
+        state.shaders["phong"].set("materialColor", state.light.color);
+        state.shaders["phong"].set("ambientStrength", 1.0f);  // Make it fully bright
+        state.shaders["phong"].set("diffuseStrength", 0.0f);  // No diffuse
+        state.shaders["phong"].set("specularStrength", 0.0f); // No specular
+
+        state.models["lightSphere"].draw();
+    }
+
+    state.frame.unbind();
+}
+
+// Helper function to convert HSV to RGB color space
+glm::vec4 hsvToRgb(float h, float s, float v)
+{
+    float c = v * s;
+    float x = c * (1.0f - fabs(fmod(h / 60.0f, 2.0f) - 1.0f));
+    float m = v - c;
+
+    float r, g, b;
+    if (h >= 0 && h < 60)
+    {
+        r = c;
+        g = x;
+        b = 0;
+    }
+    else if (h >= 60 && h < 120)
+    {
+        r = x;
+        g = c;
+        b = 0;
+    }
+    else if (h >= 120 && h < 180)
+    {
+        r = 0;
+        g = c;
+        b = x;
+    }
+    else if (h >= 180 && h < 240)
+    {
+        r = 0;
+        g = x;
+        b = c;
+    }
+    else if (h >= 240 && h < 300)
+    {
+        r = x;
+        g = 0;
+        b = c;
+    }
+    else
+    {
+        r = c;
+        g = 0;
+        b = x;
+    }
+
+    return glm::vec4(r + m, g + m, b + m, 1.0f);
+}
+
+// Test if point is inside tetrahedron using barycentric coordinates
+bool pointInTetrahedron(const glm::vec3 &point, const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2,
+                        const glm::vec3 &v3)
+{
+    glm::mat4 M(glm::vec4(v0, 1.0f), glm::vec4(v1, 1.0f), glm::vec4(v2, 1.0f), glm::vec4(v3, 1.0f));
+
+    float det = glm::determinant(M);
+    if (abs(det) < 1e-6f)
+        return false; // Degenerate tetrahedron
+
+    // Calculate barycentric coordinates
+    glm::mat4 M0 = M;
+    M0[0] = glm::vec4(point, 1.0f);
+    float lambda0 = glm::determinant(M0) / det;
+
+    glm::mat4 M1 = M;
+    M1[1] = glm::vec4(point, 1.0f);
+    float lambda1 = glm::determinant(M1) / det;
+
+    glm::mat4 M2 = M;
+    M2[2] = glm::vec4(point, 1.0f);
+    float lambda2 = glm::determinant(M2) / det;
+
+    glm::mat4 M3 = M;
+    M3[3] = glm::vec4(point, 1.0f);
+    float lambda3 = glm::determinant(M3) / det;
+
+    const float tolerance = -1e-6f; // Small negative tolerance for numerical stability
+    return (lambda0 >= tolerance && lambda1 >= tolerance && lambda2 >= tolerance && lambda3 >= tolerance);
+}
+
+// Test ray-tetrahedron intersection and return distance to closest intersection
+bool rayIntersectsTetrahedron(const Ray &ray, const Polylla::Tetrahedron &cell, const Polylla::Mesh &mesh,
+                              float &closestDistance)
+{
+    // Safety checks
+    if (cell.vertices.size() != 4)
+        return false;
+
+    // Get tetrahedron vertices
+    std::vector<glm::vec3> vertices;
+    for (int vi : cell.vertices)
+    {
+        if (vi < 0 || vi >= mesh.vertices.size())
+            return false; // Invalid vertex index
+
+        const auto &v = mesh.vertices[vi];
+        vertices.push_back(glm::vec3(v.x(), v.y(), v.z()));
+    }
+
+    if (vertices.size() != 4)
+        return false;
+
+    glm::vec3 v0 = vertices[0];
+    glm::vec3 v1 = vertices[1];
+    glm::vec3 v2 = vertices[2];
+    glm::vec3 v3 = vertices[3];
+
+    // Test multiple points along the ray to find the closest intersection
+    const float maxDistance = 100.0f;
+    const int samples = 200;
+
+    closestDistance = maxDistance + 1.0f; // Initialize to beyond max range
+    bool found = false;
+
+    for (int i = 0; i < samples; i++)
+    {
+        float t = (float)i / (samples - 1) * maxDistance;
+        glm::vec3 point = ray.origin + t * ray.direction;
+
+        if (pointInTetrahedron(point, v0, v1, v2, v3))
+        {
+            closestDistance = t;
+            found = true;
+            break; // Found first intersection, which is closest due to sequential sampling
+        }
+    }
+
+    return found;
+}
+
+// Find the closest cell that intersects with the ray
+int findIntersectedCell(const Ray &ray, const Polylla::Mesh &mesh)
+{
+    if (mesh.cells.empty())
+        return -1;
+
+    int closestCellIndex = -1;
+    float closestDistance = FLT_MAX;
+
+    for (size_t i = 0; i < mesh.cells.size(); i++)
+    {
+        const auto intersection = ray.intersect(mesh.cells[i], mesh);
+        if (intersection)
+        {
+            if (glm::length(intersection.value() - ray.origin) < closestDistance)
+            {
+                closestDistance = glm::length(intersection.value() - ray.origin);
+                closestCellIndex = (int)i;
+            }
+        }
+    }
+    return closestCellIndex;
+}
+
+} // namespace render
+
+namespace app
+{
+
+struct Controller
+{
+    // Mouse state for input tracking
+    bool isDragging = false;
+    double lastMouseX = 0.0;
+    double lastMouseY = 0.0;
+};
+
+// Application state
+static struct State
+{
+    bool showDemoWindow = false;
+    int selectedTab = 0; // 0=Tools, 1=Properties, 2=Info
+    float minWidth = 300.0f;
+    GLFWwindow *window = nullptr;
+    Polylla::Mesh mesh;
+    Polylla::PolyMesh polyMesh;
+    Polylla::TetgenReader reader;
+    Polylla::VisFWriter writer;
+    Controller controller;
+    std::vector<std::string> meshes = {"basic", "3D_100", "1000points", "socket"};
+    int currentMesh = 0;
+    std::mt19937 gen;
+    bool transformed = false;
+    std::vector<int> owners;
+} state;
+
+// Define mouse callbacks now that State is declared
+static void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+{
+    // Only handle camera movement if left mouse button is pressed
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+    {
+        if (!state.controller.isDragging)
+        {
+            state.controller.isDragging = true;
+            state.controller.lastMouseX = xpos;
+            state.controller.lastMouseY = ypos;
+        }
+        else
+        {
+            double deltaX = xpos - state.controller.lastMouseX;
+            double deltaY = ypos - state.controller.lastMouseY;
+
+            // Sensitivity
+            float sensitivity = 0.005f;
+
+            // Apply rotation to camera
+            render::state.camera.azimuth += -deltaX * sensitivity;
+            render::state.camera.elevation += -deltaY * sensitivity;
+            render::state.camera.elevation = glm::clamp(
+                render::state.camera.elevation, render::state.camera.minElevation, render::state.camera.maxElevation);
+
+            state.controller.lastMouseX = xpos;
+            state.controller.lastMouseY = ypos;
+        }
+    }
+    else
+    {
+        state.controller.isDragging = false;
+    }
+}
+
+static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
+    float zoomSensitivity = 0.1f;
+    float deltaDistance = -yoffset * zoomSensitivity * render::state.camera.distance;
+    render::state.camera.distance += deltaDistance;
+    render::state.camera.distance =
+        glm::clamp(render::state.camera.distance, render::state.camera.minDistance, render::state.camera.maxDistance);
+}
+
+static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+    {
+        // Get mouse position
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+
+        // Get window size
+        int windowWidth, windowHeight;
+        glfwGetWindowSize(window, &windowWidth, &windowHeight);
+
+        // Simple coordinate mapping - we'll do a basic check if it's in the main area
+        // Account for approximate ImGui layout: navbar (25px) and sidebar (300px)
+        float viewportX = xpos - 0;     // No horizontal offset for now
+        float viewportY = ypos - 25.0f; // Account for navbar height
+
+        // Basic bounds check - if click is roughly in the main viewport area
+        if (viewportX >= 0 && viewportX < (windowWidth - 300) && viewportY >= 0 && viewportY < (windowHeight - 25))
+        {
+            if (render::state.selectedCellIndex >= 0)
+            {
+                if (state.transformed)
+                {
+                    int pi = app::state.polyMesh.tetras[render::state.selectedCellIndex].polyhedron;
+                    for (int ti : app::state.polyMesh.cells[pi].cells)
+                    {
+                        render::state.mesh.cells[ti].visibility = render::Model::VISIBLE;
+                    }
+                }
+                else
+                {
+                    render::state.mesh.cells[render::state.selectedCellIndex].visibility = render::Model::VISIBLE;
+                }
+            }
+
+            // Map to framebuffer coordinates
+            float fbX = (viewportX / (windowWidth - 300)) * render::state.frame.width;
+            float fbY = (viewportY / (windowHeight - 25)) * render::state.frame.height;
+
+            // Create ray from screen coordinates
+            render::Ray ray = render::Ray::fromMouse(fbX, fbY, render::state.frame.width, render::state.frame.height, render::state.frame.projection(), render::state.camera.view());
+
+            // Check if mesh is loaded
+            if (!app::state.mesh.cells.empty() && !app::state.mesh.vertices.empty())
+            {
+
+                // Find intersected cell
+                int cellIndex = render::findIntersectedCell(ray, app::state.mesh);
+
+                if (cellIndex >= 0)
+                {
+                    if (state.transformed)
+                    {
+                        // Highlight the polyhedron
+                        int pi = app::state.polyMesh.tetras[cellIndex].polyhedron;
+                        glm::vec3 center(0.0f);
+                        for (int ti : app::state.polyMesh.cells[pi].cells)
+                        {
+                            render::state.mesh.cells[ti].visibility = render::Model::SELECTED;
+                            center += render::state.mesh.cells[ti].center;
+                        }
+                        center /= app::state.polyMesh.cells[pi].cells.size();
+                        render::state.selectedCellCenter = center;
+                    }
+                    else
+                    {
+                        render::state.mesh.cells[cellIndex].visibility = render::Model::SELECTED;
+                        render::state.selectedCellCenter = render::state.mesh.cells[cellIndex].center;
+                    }
+                    render::state.selectedCellIndex = cellIndex;
+                }
+            }
+        }
+    }
+}
+
+void paintMesh()
+{
+    std::uniform_real_distribution<float> hueDistribution(0.0f, 360.0f);
+    for (size_t i = 0; i < state.mesh.cells.size(); i++)
+    {
+        float hue = hueDistribution(state.gen);
+        float saturation = 0.8f;                                          // High saturation for vibrant colors
+        float value = 0.8f;                                               // High value for bright colors
+        glm::vec4 color = render::hsvToRgb(hue, saturation, value);
+        if (state.transformed)
+        {
+            color = render::state.mesh.cells[state.owners[i]].color;
+        }
+        render::state.mesh.cells[i].color = color;
+    }
+
+}
+
+void loadMesh(const std::string &meshName)
+{
+    state.transformed = false;
+    std::string meshPath = DATA_DIR + meshName;
+    state.reader.meshName = meshPath;
+    Polylla::Mesh mesh = state.reader.readMesh();
+
+    app::state.mesh = mesh;
+
+    // Clear existing render mesh data
+    render::state.mesh.end();
+
+    glm::vec3 minBounds(FLT_MAX);
+    glm::vec3 maxBounds(-FLT_MAX);
+
+    for (size_t cellIndex = 0; cellIndex < mesh.cells.size(); cellIndex++)
+    {
+        const auto &cell = mesh.cells[cellIndex];
+
+        auto buffer = std::make_unique<render::PhongCellBuffer>();
+        buffer->init(cell, mesh);
+
+        // Generate a unique color for each cell using HSV color space
+
+        auto model = render::Model();
+        model.buffer = buffer.get(); // Get pointer before moving
+        model.shader = &render::state.shaders["phong"];
+        model.outlinedShader = &render::state.shaders["basic"];
+
+        // calculates center and bounds
+        glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 min = glm::vec3(FLT_MAX);
+        glm::vec3 max = glm::vec3(-FLT_MAX);
+        for (const auto &vi : cell.vertices)
+        {
+            const auto &vertex = mesh.vertices[vi];
+            auto v = toVec3(vertex);
+            center += v;
+            min = glm::min(min, v);
+            max = glm::max(max, v);
+        }
+        center /= cell.vertices.size();
+        model.center = center;
+        model.collider.min = min;
+        model.collider.max = max;
+
+        render::state.mesh.buffers.push_back(std::move(buffer)); // Move after getting pointer
+        render::state.mesh.cells.push_back(model);
+    }
+    for (const auto &vertex : mesh.vertices)
+    {
+        glm::vec3 pos(vertex.x(), vertex.y(), vertex.z());
+        minBounds = glm::min(minBounds, pos);
+        maxBounds = glm::max(maxBounds, pos);
+    }
+
+    render::state.camera.target = (minBounds + maxBounds) * 0.5f;
+
+    // Set initial distance based on mesh size
+    glm::vec3 size = maxBounds - minBounds;
+    float meshSize = glm::length(size);
+    render::state.camera.distance = meshSize * 1.5f; // Start at 1.5x the mesh size
+
+    // Update distance constraints based on mesh size
+    render::state.camera.minDistance = meshSize * 0.1f;
+    render::state.camera.maxDistance = meshSize * 5.0f;
+
+    paintMesh();
+}
+
+void drawMenuBar()
+{
+    if (ImGui::BeginMenuBar())
+
+    {
+        if (ImGui::BeginMenu("Meshes"))
+        {
+            for (int i = 0; i < app::state.meshes.size(); i++)
+            {
+                if (ImGui::MenuItem(app::state.meshes[i].c_str()))
+                {
+                    app::state.currentMesh = i;
+                    loadMesh(app::state.meshes[i]);
+                }
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View"))
+        {
+            ImGui::MenuItem("Demo Window", nullptr, &state.showDemoWindow);
+            ImGui::EndMenu();
+        }
+
+        // if (ImGui::BeginMenu("Tools"))
+        // {
+        //     if (ImGui::MenuItem("Reset Layout"))
+        //     {
+        //         // Handle reset layout
+        //     }
+        //     ImGui::Separator();
+        //     if (ImGui::MenuItem("Preferences"))
+        //     {
+        //         // Handle preferences
+        //     }
+        //     ImGui::EndMenu();
+        // }
+
+        // if (ImGui::BeginMenu("Help"))
+        // {
+        //     if (ImGui::MenuItem("About"))
+        //     {
+        //         // Handle about
+        //     }
+        //     ImGui::EndMenu();
+        // }
+
+        ImGui::EndMenuBar();
+    }
+}
+
+void drawViewport()
+{
+    // Calculate viewport width: total width minus fixed sidebar width
+    float viewportWidth = ImGui::GetContentRegionAvail().x - state.minWidth;
+
+    ImGui::BeginChild("Viewport", ImVec2(viewportWidth, 0));
+
+    ImVec2 availableSize = ImGui::GetContentRegionAvail();
+
+    // Resize framebuffer if needed
+    if ((int)availableSize.x != render::state.frame.width || (int)availableSize.y != render::state.frame.height)
+    {
+        render::state.frame.width = (int)availableSize.x;
+        render::state.frame.height = (int)availableSize.y;
+        if (render::state.frame.width > 0 && render::state.frame.height > 0)
+        {
+            render::state.frame.init();
+        }
+    }
+
+    // Render to texture
+    if (render::state.frame.width > 0 && render::state.frame.height > 0)
+    {
+        // Render the scene to the framebuffer
+        render::render();
+
+        // Display the texture
+        ImGui::Image((void *)(intptr_t)render::state.frame.colorTexture, availableSize, ImVec2(0, 1), ImVec2(1, 0));
+    }
+
+    ImGui::EndChild();
+}
+
+void drawSidebar()
+{
+    ImGui::BeginGroup();
+
+    // Fixed width sidebar with padding
+    ImGui::BeginChild("Sidebar", ImVec2(0, 0));
+
+    // Tab bar
+    if (ImGui::BeginTabBar("SidebarTabs", ImGuiTabBarFlags_None))
+    {
+        // Info Tab
+        if (ImGui::BeginTabItem("Information"))
+        {
+            ImGui::Spacing();
+            ImGui::Text("Mesh");
+            ImGui::Separator();
+
+            ImGui::TextWrapped("File: %s(.node|.ele)", state.reader.meshName.c_str());
+            ImGui::Text("Cells: %zu", state.mesh.cells.size());
+            ImGui::Text("Vertices: %zu", state.mesh.vertices.size());
+            ImGui::Text("Faces: %zu", state.mesh.faces.size());
+
+            ImGui::Spacing();
+            ImGui::Text("Performance");
+            ImGui::Separator();
+            ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+            ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+
+            ImGui::Spacing();
+            ImGui::Text("Memory Usage");
+            ImGui::Separator();
+            ImGui::Text("GPU Memory: N/A");
+            ImGui::Text("System Memory: N/A");
+
+            ImGui::Spacing();
+            ImGui::Text("Viewport");
+            ImGui::Separator();
+            ImGui::Text("Size: %dx%d", render::state.frame.width, render::state.frame.height);
+            ImGui::Text("Aspect: %.2f", (float)render::state.frame.width / render::state.frame.height);
+
+            ImGui::EndTabItem();
+        }
+
+        // Tools Tab
+        if (ImGui::BeginTabItem("Tools"))
+        {
+            ImGui::Spacing();
+            ImGui::Text("Selection");
+            ImGui::Separator();
+            if (render::state.selectedCellIndex >= 0)
+            {
+                ImGui::Text("Selected Cell: %d", render::state.selectedCellIndex);
+                ImGui::Text("Right-click to deselect");
+                if (ImGui::Button("Center View"))
+                {
+                    // Handle delete
+                }
+
+                if (ImGui::Button("Show Neighbors"))
+                {
+                    // Handle show neighbors
+                }
+
+                if (ImGui::Button("Show Circumsphere"))
+                {
+                    // Handle show circumsphere
+                }
+
+                if (ImGui::Button("Isolate"))
+                {
+                    // Handle show faces
+                }
+            }
+            else
+            {
+                ImGui::Text("No cell selected");
+                ImGui::Text("Right-click on a cell to select");
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Planes");
+            ImGui::Separator();
+
+            if (ImGui::Button("Add a plane"))
+            {
+                // Handle select tool
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Algorithm");
+            ImGui::Separator();
+
+            static int algorithm = 0;
+            ImGui::RadioButton("Cavity", &algorithm, 0); ImGui::SameLine();
+            ImGui::RadioButton("Face", &algorithm, 1); ImGui::SameLine();
+            ImGui::RadioButton("Edge", &algorithm, 2);
+
+            if (algorithm == 0)
+            {
+                if (ImGui::Button("Start"))
+                {
+                    Polylla::CavityAlgorithm algorithm;
+                    state.polyMesh = algorithm(state.mesh);
+                    state.transformed = true;
+                    state.owners = algorithm.owners;
+                    paintMesh();
+                }
+                if (ImGui::Button("Reset"))
+                {
+                    state.transformed = false;
+                    paintMesh();
+                }
+            }
+            else 
+            {
+                ImGui::Text("Not implemented");
+            }
+
+            ImGui::EndTabItem();
+        }
+
+        // Scene Tab
+        if (ImGui::BeginTabItem("Scene"))
+        {
+            ImGui::Spacing();
+            ImGui::Text("Lighting");
+            ImGui::Separator();
+
+            // Light position controls
+            ImGui::Text("Light Position");
+            ImGui::DragFloat3("Position", glm::value_ptr(render::state.light.position), 0.1f);
+
+            // Light color controls
+            ImGui::Text("Light Color");
+            ImGui::ColorEdit3("Color", glm::value_ptr(render::state.light.color));
+
+            // Light intensity
+            ImGui::Text("Light Intensity");
+            ImGui::SliderFloat("Intensity", &render::state.light.intensity, 0.0f, 3.0f);
+
+            // Show light sphere
+            ImGui::Text("Light Visualization");
+            ImGui::Checkbox("Show Light Sphere", &render::state.renderSettings.showLightSphere);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                ImGui::TextUnformatted("Show/hide the light position indicator sphere");
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Rendering");
+            ImGui::Separator();
+
+            // Wireframe control
+            ImGui::Checkbox("Wireframe", &render::state.renderSettings.wireframe);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                ImGui::TextUnformatted("Show mesh structure as wireframe");
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
+            // Show grid
+            ImGui::Checkbox("Show Grid", &render::state.renderSettings.showGrid);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                ImGui::TextUnformatted("Show grid lines");
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
+            ImGui::EndTabItem();
+        }
+
+
+        ImGui::EndTabBar();
+    }
+
+    ImGui::EndChild();
+    ImGui::EndGroup();
+}
+
+// Draw simple application layout based on ImGui ShowExampleAppLayout
+void drawLayout()
+{
+    // Create main application window
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                                   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar;
+
+    if (ImGui::Begin("3D-GPolylla", nullptr, windowFlags))
+    {
+        drawMenuBar();
+        drawViewport();
+        ImGui::SameLine();
+        drawSidebar();
+    }
+
+    ImGui::End();
+}
+
+void init()
+{
+    std::random_device rd;
+    state.gen = std::mt19937(rd());
+    // Load mesh
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
-        return 1;
+        return;
 
     // Decide GL+GLSL versions
     // GL 3.0 + GLSL 130
@@ -539,18 +1711,23 @@ int main(int, char **)
 
     // Create window with graphics context
     float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
-    GLFWwindow *window = glfwCreateWindow((int)(1280 * main_scale), (int)(800 * main_scale),
-                                          "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
-    if (window == nullptr)
-        return 1;
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
+    app::state.window = glfwCreateWindow((int)(1280 * main_scale), (int)(800 * main_scale),
+                                         "3D-GPolylla - ImGui Application", nullptr, nullptr);
+    if (app::state.window == nullptr)
+        return;
+    glfwMakeContextCurrent(app::state.window);
+    glfwSwapInterval(0); // Disable vsync to unlock FPS
+
+    // Set up mouse callbacks
+    glfwSetCursorPosCallback(app::state.window, mouse_callback);
+    glfwSetScrollCallback(app::state.window, scroll_callback);
+    glfwSetMouseButtonCallback(app::state.window, mouse_button_callback);
 
     // Initialize GLAD
     if (!gladLoadGL(glfwGetProcAddress))
     {
         std::cerr << "Failed to initialize GLAD" << std::endl;
-        return -1;
+        return;
     }
 
     // Setup Dear ImGui context
@@ -560,6 +1737,9 @@ int main(int, char **)
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+    // Note: Docking and Viewports require the docking branch of ImGui
+    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -572,22 +1752,15 @@ int main(int, char **)
     style.FontScaleDpi = main_scale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this
                                      // unnecessary. We leave both here for documentation purpose)
 
+    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular
+    // ones. Note: This requires the docking branch of ImGui if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+    //     style.WindowRounding = 0.0f;
+    //     style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    // }
+
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true); // Let ImGui install its own callbacks
+    ImGui_ImplGlfw_InitForOpenGL(app::state.window, true); // Let ImGui install its own callbacks
     ImGui_ImplOpenGL3_Init(glsl_version);
-
-    // Set additional callback for our custom key handling
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
-
-    // Capture mouse cursor for camera movement
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    // Initialize mouse position variables
-    int windowWidth, windowHeight;
-    glfwGetWindowSize(window, &windowWidth, &windowHeight);
-    lastX = windowWidth / 2.0f;
-    lastY = windowHeight / 2.0f;
 
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use
@@ -611,198 +1784,113 @@ int main(int, char **)
     // ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
     // IM_ASSERT(font != nullptr);
 
-    // Setup cube
-    CubeData cube;
-    GLuint VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    // Initialize application state
 
-    glBindVertexArray(VAO);
+    render::init();
+    loadMesh(state.meshes[state.currentMesh]);
+}
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, cube.vertices.size() * sizeof(float), cube.vertices.data(), GL_STATIC_DRAW);
+void draw()
+{
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, cube.indices.size() * sizeof(unsigned int), cube.indices.data(),
-                 GL_STATIC_DRAW);
+    // Draw main application layout
+    drawLayout();
 
-    // Position attribute (location 0)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
+    // Show the demo window
+    if (state.showDemoWindow)
+        ImGui::ShowDemoWindow(&state.showDemoWindow);
 
-    // Normal attribute (location 1)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    // Rendering
+    ImGui::Render();
+    int display_w, display_h;
+    glfwGetFramebufferSize(state.window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    // Create shader program using basic shaders
-    GLuint shaderProgram = createShaderProgram("src/renderer/shaders/basic.vs", "src/renderer/shaders/basic.fs");
-    if (shaderProgram == 0)
+    glfwSwapBuffers(state.window);
+}
+
+void end()
+{
+
+    // Cleanup models
+    for (auto &model : render::state.models)
     {
-        std::cerr << "Failed to create shader program" << std::endl;
-        glfwTerminate();
-        return -1;
+        model.second.buffer->end();
     }
 
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-
-    // Set up lighting parameters
-    Eigen::Vector3f lightPos(2.0f, 2.0f, 2.0f);
-    Eigen::Vector3f lightColor(1.0f, 1.0f, 1.0f);
-    Eigen::Vector3f objectColor(1.0f, 0.5f, 0.31f);
-
-    // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-    // Main loop
-    while (!glfwWindowShouldClose(window))
+    // Cleanup shaders
+    for (auto &shader : render::state.shaders)
     {
-        // Calculate delta time
-        float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your
-        // inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or
-        // clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or
-        // clear/overwrite your copy of the keyboard data. Generally you may always pass all inputs to dear imgui, and
-        // hide them from your application based on those two flags.
-        glfwPollEvents();
-        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0)
-        {
-            ImGui_ImplGlfw_Sleep(10);
-            continue;
-        }
-
-        // Process input
-        processInput();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code
-        // to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");          // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window); // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);             // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float *)&clear_color); // Edit 3 floats representing a color
-
-            ImGui::Separator();
-            ImGui::Text("Camera Controls:");
-            ImGui::Text("WASD - Move camera");
-            ImGui::Text("Mouse - Look around (when captured)");
-            ImGui::Text("TAB - Toggle mouse capture");
-            ImGui::Text("ESC - Close window");
-            ImGui::Text("Mouse captured: %s", mouseCaptured ? "Yes" : "No");
-            ImGui::Text("Camera position: (%.1f, %.1f, %.1f)", camera.position.x(), camera.position.y(),
-                        camera.position.z());
-
-            if (ImGui::Button(
-                    "Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window",
-                         &show_another_window); // Pass a pointer to our bool variable (the window will have a closing
-                                                // button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
-
-        // Rendering
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w,
-                     clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Calculate rotation matrix
-        float time = static_cast<float>(glfwGetTime());
-        Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
-        Eigen::AngleAxisf rotation(time * 0.5f, Eigen::Vector3f(0.5f, 1.0f, 0.0f).normalized());
-        model.block<3, 3>(0, 0) = rotation.toRotationMatrix();
-
-        // Create view and projection matrices
-        Eigen::Matrix4f view = camera.getViewMatrix();
-        float aspect = static_cast<float>(display_w) / static_cast<float>(display_h);
-        Eigen::Matrix4f projection = createPerspectiveMatrix(45.0f * M_PI / 180.0f, aspect, 0.1f, 100.0f);
-
-        // Render cube
-        glUseProgram(shaderProgram);
-
-        // Set uniforms
-        GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
-        GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
-        GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
-        GLint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
-        GLint viewPosLoc = glGetUniformLocation(shaderProgram, "viewPos");
-        GLint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
-        GLint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
-
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model.data());
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view.data());
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection.data());
-        glUniform3fv(lightPosLoc, 1, lightPos.data());
-        glUniform3fv(viewPosLoc, 1, camera.position.data());
-        glUniform3fv(lightColorLoc, 1, lightColor.data());
-        glUniform3fv(objectColorLoc, 1, objectColor.data());
-
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(cube.indices.size()), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        glfwSwapBuffers(window);
+        shader.second.end();
     }
-
-    // Cleanup
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-    glDeleteProgram(shaderProgram);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(app::state.window);
     glfwTerminate();
+}
 
+void update(float deltaTime)
+{
+    // Poll and handle events
+    glfwPollEvents();
+    if (glfwGetWindowAttrib(app::state.window, GLFW_ICONIFIED) != 0)
+    {
+        ImGui_ImplGlfw_Sleep(10);
+        return;
+    }
+    render::state.camera.update();
+    // render::state.selection.selectedCellCenter = glm::vec3(0.0f);
+    // if (render::state.selection.selectedCellIndex < render::state.mesh.cells.size())
+    // {
+    //     const auto &selectedCell = state.mesh.cells[render::state.selection.selectedCellIndex];
+    //     for (int vi : selectedCell.vertices)
+    //     {
+    //         if (vi >= 0 && vi < app::state.mesh.vertices.size())
+    //         {
+    //             const auto &v = app::state.mesh.vertices[vi];
+    //             render::state.selection.selectedCellCenter += glm::vec3(v.x(), v.y(), v.z());
+    //         }
+    //     }
+    //     render::state.selection.selectedCellCenter /= 4.0f; // Average of 4 vertices
+    // }
+}
+
+bool isRunning()
+{
+    return !glfwWindowShouldClose(app::state.window);
+}
+
+} // namespace app
+
+// Main code
+int main(int, char **)
+{
+    app::init();
+
+    // Main loop
+    float t0, t1, deltaTime;
+    t0 = glfwGetTime();
+    while (app::isRunning())
+    {
+        // Update and draw
+        t1 = glfwGetTime();
+        deltaTime = t1 - t0;
+        app::update(deltaTime);
+        app::draw();
+        t0 = t1;
+    }
+
+    app::end();
     return 0;
 }

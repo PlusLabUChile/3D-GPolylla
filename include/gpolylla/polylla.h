@@ -32,6 +32,7 @@ struct Tetrahedron
 {
     std::array<int, 4> vertices = {-1, -1, -1, -1};
     std::array<int, 4> faces = {-1, -1, -1, -1}; // Faces of the tetrahedron
+    int polyhedron = -1;
     Tetrahedron();
     Tetrahedron(int v0, int v1, int v2, int v3);
     Tetrahedron(const std::array<int, 4> &verts);
@@ -111,6 +112,7 @@ class Algorithm
 class CavityAlgorithm : public Algorithm
 {
   public:
+    std::vector<int> owners;
     PolyMesh operator()(const Mesh &mesh) override;
 };
 } // namespace Polylla

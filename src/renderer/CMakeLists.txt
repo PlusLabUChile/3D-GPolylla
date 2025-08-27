@@ -52,14 +52,23 @@ if(NOT glad_POPULATED)
     glad_add_library(glad REPRODUCIBLE API gl:core=4.6)
 endif()
 
+# glm
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.1
+)
+FetchContent_MakeAvailable(glm)
+
 
 add_executable(GPolyllaRenderer ${SRC_FILES})
-target_link_libraries(GPolyllaRenderer PRIVATE GPolylla::gpolylla imgui_glfw glad glfw OpenGL::GL)
+target_link_libraries(GPolyllaRenderer PRIVATE GPolylla::gpolylla imgui_glfw glad glfw OpenGL::GL glm)
+target_compile_definitions(GPolyllaRenderer PRIVATE DATA_DIR="${PROJECT_SOURCE_DIR}/data/")
 
 # Copy shaders folder to build directory
 add_custom_command(TARGET GPolyllaRenderer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders
-    $<TARGET_FILE_DIR:GPolyllaRenderer>/src/renderer/shaders)
+    $<TARGET_FILE_DIR:GPolyllaRenderer>/shaders)
 
 add_executable(GPolylla::renderer ALIAS GPolyllaRenderer)

@@ -141,6 +141,10 @@ void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
         dfs(ti, ti, &uniquePoints, &faces, &tetras);
 
         vector<int> points(uniquePoints.begin(), uniquePoints.end());
+        for (int ti : tetras)
+        {
+            result->tetras[ti].polyhedron = result->cells.size();
+        }
         result->cells.emplace_back(points, faces, tetras);
     }
 };
@@ -161,5 +165,6 @@ PolyMesh CavityAlgorithm::operator()(const Mesh &mesh)
     labelCavities(mesh, &result, &info);
     buildCavities(mesh, &result, &info);
     fixCavities(mesh, &result, &info);
+    owners = info.owners;
     return result;
 }
