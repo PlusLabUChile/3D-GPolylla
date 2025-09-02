@@ -21,10 +21,10 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
-#include <stdio.h>
-#include <unordered_map>
 #include <optional>
 #include <random>
+#include <stdio.h>
+#include <unordered_map>
 
 #include <gpolylla/polylla.h>
 
@@ -550,10 +550,6 @@ struct Model
     glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
     Visibility visibility = VISIBLE;
     AABB collider;
-
-    void draw()
-    {
-    }
 };
 
 struct VolumeMesh
@@ -567,10 +563,6 @@ struct VolumeMesh
 
     void draw()
     {
-        for (auto &model : cells)
-        {
-            model.draw();
-        }
     }
 
     void end()
@@ -605,7 +597,8 @@ struct Ray
     glm::vec3 origin;
     glm::vec3 direction;
 
-    static Ray fromMouse(float screenX, float screenY, int viewportWidth, int viewportHeight, const glm::mat4 &projection, const glm::mat4 &view)
+    static Ray fromMouse(float screenX, float screenY, int viewportWidth, int viewportHeight,
+                         const glm::mat4 &projection, const glm::mat4 &view)
     {
         // Convert screen coordinates to normalized device coordinates
         float x = (2.0f * screenX) / viewportWidth - 1.0f;
@@ -635,11 +628,13 @@ struct Ray
         // box must have .min and .max as glm::vec3
         float tmin = (box.min.x - origin.x) / direction.x;
         float tmax = (box.max.x - origin.x) / direction.x;
-        if (tmin > tmax) std::swap(tmin, tmax);
+        if (tmin > tmax)
+            std::swap(tmin, tmax);
 
         float tymin = (box.min.y - origin.y) / direction.y;
         float tymax = (box.max.y - origin.y) / direction.y;
-        if (tymin > tymax) std::swap(tymin, tymax);
+        if (tymin > tymax)
+            std::swap(tymin, tymax);
 
         if ((tmin > tymax) || (tymin > tmax))
             return {};
@@ -651,7 +646,8 @@ struct Ray
 
         float tzmin = (box.min.z - origin.z) / direction.z;
         float tzmax = (box.max.z - origin.z) / direction.z;
-        if (tzmin > tzmax) std::swap(tzmin, tzmax);
+        if (tzmin > tzmax)
+            std::swap(tzmin, tzmax);
 
         if ((tmin > tzmax) || (tzmin > tmax))
             return {};
@@ -666,7 +662,8 @@ struct Ray
             return {};
 
         float t = tmin;
-        if (t < EPSILON) t = tmax; // If tmin is behind, use tmax (exit point)
+        if (t < EPSILON)
+            t = tmax; // If tmin is behind, use tmax (exit point)
 
         if (t < EPSILON)
             return {};
@@ -897,7 +894,6 @@ void render()
     state.shaders["phong"].set("lightColor", state.light.color * state.light.intensity);
     state.shaders["phong"].set("viewPos", state.camera.position);
 
-
     // First render the selected cell to stencil buffer
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glStencilMask(0xFF);
@@ -939,7 +935,6 @@ void render()
             if (cell.visibility == Model::HIDDEN || cell.visibility == Model::TRANSPARENT)
                 continue;
 
-
             state.shaders["basic"].use();
             state.shaders["basic"].set("model", cell.model);
             state.shaders["basic"].set("materialColor", glm::vec3(0.0f, 0.0f, 0.0f));
@@ -966,7 +961,6 @@ void render()
             state.shaders["basic"].set("model", scaledModel);
             state.shaders["basic"].set("materialColor", glm::vec3(1.0f, 1.0f, 1.0f));
             cell.buffer->draw();
-
         }
     }
 
@@ -988,8 +982,6 @@ void render()
         state.shaders["phong"].set("ambientStrength", 1.0f);  // Make it fully bright
         state.shaders["phong"].set("diffuseStrength", 0.0f);  // No diffuse
         state.shaders["phong"].set("specularStrength", 0.0f); // No specular
-
-        state.models["lightSphere"].draw();
     }
 
     state.frame.unbind();
@@ -1178,6 +1170,7 @@ static struct State
     std::mt19937 gen;
     bool transformed = false;
     std::vector<int> owners;
+    bool showTetras = false;
 } state;
 
 // Define mouse callbacks now that State is declared
@@ -1266,7 +1259,8 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action, in
             float fbY = (viewportY / (windowHeight - 25)) * render::state.frame.height;
 
             // Create ray from screen coordinates
-            render::Ray ray = render::Ray::fromMouse(fbX, fbY, render::state.frame.width, render::state.frame.height, render::state.frame.projection(), render::state.camera.view());
+            render::Ray ray = render::Ray::fromMouse(fbX, fbY, render::state.frame.width, render::state.frame.height,
+                                                     render::state.frame.projection(), render::state.camera.view());
 
             // Check if mesh is loaded
             if (!app::state.mesh.cells.empty() && !app::state.mesh.vertices.empty())
@@ -1308,8 +1302,8 @@ void paintMesh()
     for (size_t i = 0; i < state.mesh.cells.size(); i++)
     {
         float hue = hueDistribution(state.gen);
-        float saturation = 0.8f;                                          // High saturation for vibrant colors
-        float value = 0.8f;                                               // High value for bright colors
+        float saturation = 0.8f; // High saturation for vibrant colors
+        float value = 0.8f;      // High value for bright colors
         glm::vec4 color = render::hsvToRgb(hue, saturation, value);
         if (state.transformed)
         {
@@ -1317,14 +1311,18 @@ void paintMesh()
         }
         render::state.mesh.cells[i].color = color;
     }
+}
 
+void highlightCell(int cellIndex, glm::vec3 color)
+{
 }
 
 void loadMesh(const std::string &meshName)
 {
     state.transformed = false;
     std::string meshPath = DATA_DIR + meshName;
-    state.reader.meshName = meshPath;
+    state.reader.nodeFile = meshPath + ".node";
+    state.reader.eleFile = meshPath + ".ele";
     Polylla::Mesh mesh = state.reader.readMesh();
 
     app::state.mesh = mesh;
@@ -1491,7 +1489,9 @@ void drawSidebar()
             ImGui::Text("Mesh");
             ImGui::Separator();
 
-            ImGui::TextWrapped("File: %s(.node|.ele)", state.reader.meshName.c_str());
+            ImGui::TextWrapped("Node File: %s", state.reader.nodeFile.c_str());
+            ImGui::TextWrapped("Ele File: %s", state.reader.eleFile.c_str());
+
             ImGui::Text("Cells: %zu", state.mesh.cells.size());
             ImGui::Text("Vertices: %zu", state.mesh.vertices.size());
             ImGui::Text("Faces: %zu", state.mesh.faces.size());
@@ -1567,8 +1567,10 @@ void drawSidebar()
             ImGui::Separator();
 
             static int algorithm = 0;
-            ImGui::RadioButton("Cavity", &algorithm, 0); ImGui::SameLine();
-            ImGui::RadioButton("Face", &algorithm, 1); ImGui::SameLine();
+            ImGui::RadioButton("Cavity", &algorithm, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("Face", &algorithm, 1);
+            ImGui::SameLine();
             ImGui::RadioButton("Edge", &algorithm, 2);
 
             if (algorithm == 0)
@@ -1581,13 +1583,17 @@ void drawSidebar()
                     state.owners = algorithm.owners;
                     paintMesh();
                 }
+                if (ImGui::Button(state.showTetras ? "Hide Tetras" : "Show Tetras"))
+                {
+                    state.showTetras = !state.showTetras;
+                }
                 if (ImGui::Button("Reset"))
                 {
                     state.transformed = false;
                     paintMesh();
                 }
             }
-            else 
+            else
             {
                 ImGui::Text("Not implemented");
             }
@@ -1660,7 +1666,6 @@ void drawSidebar()
 
             ImGui::EndTabItem();
         }
-
 
         ImGui::EndTabBar();
     }

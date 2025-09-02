@@ -32,15 +32,14 @@ TEST_F(VisFWriterTest, WriteBasicPolyMesh)
 {
     // Create a VisFWriter instance
     VisFWriter writer;
-    writer.meshName = tempDir + "/" + testMeshName;
+    writer.outputFile = tempDir + "/" + testMeshName + ".visf";
 
     // Write the mesh to file
     writer.writeMesh(BASIC_POLY_MESH);
 
     // Read the created file
-    std::string filePath = writer.meshName + ".visf";
-    std::ifstream file(filePath);
-    ASSERT_TRUE(file.is_open()) << "Failed to open created visf file: " << filePath;
+    std::ifstream file(writer.outputFile);
+    ASSERT_TRUE(file.is_open()) << "Failed to open created visf file: " << writer.outputFile;
 
     std::stringstream fileContent;
     fileContent << file.rdbuf();
@@ -97,11 +96,10 @@ TEST_F(VisFWriterTest, FileCreation)
 {
     // Test that the file is actually created
     VisFWriter writer;
-    writer.meshName = tempDir + "/" + testMeshName;
+    writer.outputFile = tempDir + "/" + testMeshName + ".visf";
 
     // Check file doesn't exist before writing
-    std::string filePath = writer.meshName + ".visf";
-    std::ifstream checkFile(filePath);
+    std::ifstream checkFile(writer.outputFile);
     EXPECT_FALSE(checkFile.is_open()) << "File should not exist before writing";
     checkFile.close();
 
@@ -109,7 +107,7 @@ TEST_F(VisFWriterTest, FileCreation)
     writer.writeMesh(BASIC_POLY_MESH);
 
     // Check file exists after writing
-    std::ifstream createdFile(filePath);
+    std::ifstream createdFile(writer.outputFile);
     EXPECT_TRUE(createdFile.is_open()) << "File should exist after writing";
     createdFile.close();
 }

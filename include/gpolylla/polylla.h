@@ -84,7 +84,8 @@ class Reader
 class TetgenReader : public Reader
 {
   public:
-    std::string meshName;
+    std::string nodeFile;
+    std::string eleFile;
     Mesh readMesh() override;
 };
 
@@ -98,7 +99,7 @@ class Writer
 class VisFWriter : public Writer
 {
   public:
-    std::string meshName;
+    std::string outputFile;
     void writeMesh(PolyMesh mesh) override;
 };
 
@@ -106,14 +107,33 @@ class Algorithm
 {
   public:
     virtual ~Algorithm() = default;
-    virtual PolyMesh operator()(const Mesh &mesh) = 0;
+    virtual PolyMesh operator()(const Mesh &mesh, bool withInfo = false) = 0;
 };
 
 class CavityAlgorithm : public Algorithm
 {
   public:
-    std::vector<int> owners;
-    PolyMesh operator()(const Mesh &mesh) override;
+    PolyMesh operator()(const Mesh &mesh, bool withInfo = false) override;
+
+    struct Information
+    {
+        struct
+        {
+            std::vector<double> radius;
+            std::vector<Vertex> centers;
+        } cavity;
+
+        struct
+        {
+            std::vector<int> seeds;
+            std::vector<double> volumes;
+            std::vector<double> areas;
+            std::vector<double> hullVolumes;
+            std::vector<double> hullAreas;
+        } poly;
+    };
+
+    Information info;
 };
 } // namespace Polylla
 

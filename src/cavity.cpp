@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <set>
 
-
 using namespace Polylla;
 using namespace std;
 
@@ -158,13 +157,40 @@ void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
     // - Quality checks
 };
 
-PolyMesh CavityAlgorithm::operator()(const Mesh &mesh)
+CavityAlgorithm::Information getInfo(const CavityInfo &src, const PolyMesh &mesh)
+{
+    CavityAlgorithm::Information info;
+    info.cavity.centers.reserve(src.cavities.size());
+    info.cavity.radius.reserve(src.cavities.size());
+    for (auto sphere : src.cavities)
+    {
+        info.cavity.centers.push_back(sphere.center);
+        info.cavity.radius.push_back(sphere.radius);
+    }
+
+    info.poly.hullVolumes.reserve(mesh.cells.size());
+    info.poly.volumes.reserve(mesh.cells.size());
+    info.poly.seeds.reserve(mesh.cells.size());
+    for (auto poly : mesh.cells)
+    {
+        // info.poly.hullVolumes.push_back();
+        // info.poly.hullAreas.push_back();
+        info.poly.areas.push_back(polyhedronArea(poly, mesh));
+        info.poly.volumes.push_back(polyhedronVolume(poly, mesh));
+    }
+}
+
+PolyMesh CavityAlgorithm::operator()(const Mesh &mesh, bool withInfo = false)
 {
     PolyMesh result;
     CavityInfo info;
     labelCavities(mesh, &result, &info);
     buildCavities(mesh, &result, &info);
     fixCavities(mesh, &result, &info);
-    owners = info.owners;
+    if (withInfo)
+    {
+        this->info = getInfo(info, result);
+    }
+    // owners = info.owners;
     return result;
 }

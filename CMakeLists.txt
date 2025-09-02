@@ -11,8 +11,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_subdirectory(src)
 
-option(GPOLYLLA_VISUALIZER "Build visualizer" OFF)
-if (GPOLYLLA_VISUALIZER)
+option(GPOLYLLA_RENDERER "Build renderer" OFF)
+if (GPOLYLLA_RENDERER)
     add_subdirectory(src/renderer)
 endif()
 

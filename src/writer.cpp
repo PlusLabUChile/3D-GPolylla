@@ -26,7 +26,6 @@ DirectedInfo getDirectedFaces(PolyMesh *mesh)
 {
     DirectedInfo info;
     info.cells.resize(mesh->cells.size());
-    int fi = 0;
     for (int pi = 0; pi < mesh->cells.size(); ++pi)
     {
         const Polyhedron &p = mesh->cells[pi];
@@ -35,6 +34,7 @@ DirectedInfo getDirectedFaces(PolyMesh *mesh)
             const Tetrahedron &t = mesh->tetras[ti];
             for (const int tetraFi : t.faces)
             {
+
                 if (ranges::find(p.faces, tetraFi) == p.faces.end())
                     continue;
 
@@ -53,8 +53,8 @@ DirectedInfo getDirectedFaces(PolyMesh *mesh)
                         ranges::reverse(vertices);
                     }
                     info.faces.push_back(vertices);
-                    info.cells[pi].push_back(fi);
-                    fi++;
+
+                    info.cells[pi].push_back(info.faces.size() - 1);
                     break;
                 }
             }
@@ -65,10 +65,10 @@ DirectedInfo getDirectedFaces(PolyMesh *mesh)
 
 void VisFWriter::writeMesh(PolyMesh mesh)
 {
-    ofstream file(meshName + ".visf");
+    ofstream file(outputFile);
     if (!file.is_open())
     {
-        throw runtime_error("Unable to create file: " + meshName + ".visf");
+        throw runtime_error("Unable to create file: " + outputFile);
     }
 
     // primer valor -> formato del archivo
@@ -92,10 +92,10 @@ void VisFWriter::writeMesh(PolyMesh mesh)
     // cantidad de poligonos y poligonos
     auto info = getDirectedFaces(&mesh);
     file << info.faces.size() << endl;
-    for (const auto &f : mesh.faces)
+    for (const auto &vertices : info.faces)
     {
-        file << f.vertices.size();
-        for (int vi : f.vertices)
+        file << vertices.size();
+        for (int vi : vertices)
         {
             file << " " << vi;
         }
@@ -105,12 +105,11 @@ void VisFWriter::writeMesh(PolyMesh mesh)
     // relacion de vecindad entre poligonos
     file << 0 << endl;
     // numero de poliedros y poliedros (basado en poligonos)
-    file << mesh.cells.size() << endl;
-    for (int pi = 0; pi < mesh.cells.size(); ++pi)
+    file << info.cells.size() << endl;
+    for (const auto &faces : info.cells)
     {
-        const auto &p = mesh.cells[pi];
-        file << p.faces.size();
-        for (int fi : p.faces)
+        file << faces.size();
+        for (int fi : faces)
         {
             file << " " << fi;
         }

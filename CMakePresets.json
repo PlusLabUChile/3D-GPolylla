@@ -10,7 +10,8 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "GPOLYLLA_TEST": "ON",
-                "GPOLYLLA_VISUALIZER": "ON",
+                "GPOLYLLA_RENDERER": "ON",
+                "GPOLYLLA_EXE": "ON",
                 "CMAKE_C_COMPILER": "cl",
                 "CMAKE_CXX_COMPILER": "cl"
             }

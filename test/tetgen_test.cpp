@@ -2,19 +2,16 @@
 
 using namespace Polylla;
 
-
 class TetgenReaderTest : public ::testing::Test
 {
   protected:
     TetgenReader reader;
 };
 
-
-
-
 TEST_F(TetgenReaderTest, BasicReadMesh)
 {
-    reader.meshName = DATA_DIR "basic";
+    reader.nodeFile = DATA_DIR "basic.node";
+    reader.eleFile = DATA_DIR "basic.ele";
     Mesh mesh = reader.readMesh();
 
     ASSERT_EQ(mesh.vertices.size(), BASIC_MESH.vertices.size());

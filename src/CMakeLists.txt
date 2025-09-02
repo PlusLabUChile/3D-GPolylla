@@ -27,8 +27,20 @@ set(EIGEN_BUILD_PKGCONFIG OFF)
 set(EIGEN_BUILD_DOC OFF)
 FetchContent_MakeAvailable(Eigen3)
 
+FetchContent_Declare(
+        qhull
+        GIT_REPOSITORY https://github.com/akuukka/quickhull.git
+        GIT_BRANCH master
+)
+FetchContent_GetProperties(qhull)
+if (NOT ghull_POPULATED)
+    FetchContent_MakeAvailable(qhull)
+    add_library(quickhull STATIC ${qhull_SOURCE_DIR}/QuickHull.cpp)
+    target_include_directories(quickhull PUBLIC ${qhull_SOURCE_DIR})
+endif()
+
 add_library(GPolyllaLib ${GPOL_SRCS})
-target_link_libraries(GPolyllaLib PUBLIC Eigen3::Eigen)
+target_link_libraries(GPolyllaLib PUBLIC Eigen3::Eigen quickhull)
 target_include_directories(GPolyllaLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 add_library(GPolylla::gpolylla ALIAS GPolyllaLib)
 

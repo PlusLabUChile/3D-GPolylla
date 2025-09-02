@@ -170,8 +170,8 @@ void buildConnectivity(Mesh *mesh)
 Mesh TetgenReader::readMesh()
 {
     Mesh m;
-    m.vertices = buildVertices(this->meshName + ".node");
-    m.cells = buildCells(this->meshName + ".ele");
+    m.vertices = buildVertices(this->nodeFile);
+    m.cells = buildCells(this->eleFile);
 
     m.faces = buildFaces(m.vertices, m.cells);
     buildConnectivity(&m);
