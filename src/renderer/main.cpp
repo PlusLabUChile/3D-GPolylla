@@ -25,6 +25,7 @@
 #include <random>
 #include <stdio.h>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <gpolylla/polylla.h>
 
@@ -417,15 +418,15 @@ struct PhongCellBuffer : public Buffer
         for (int fi = 0; fi < cell.faces.size(); fi++)
         {
             // Calculate face normal
-            const auto &face = mesh.faces[cell.faces[fi]];
+            const auto &face = mesh.faces.at(cell.faces.at(fi));
 
             auto faceVertices = face.vertices;
 
-            const auto &other = mesh.vertices[cell.vertices[fi]];
+            const auto &other = mesh.vertices.at(cell.vertices.at(fi));
 
-            const auto &v0 = mesh.vertices[faceVertices[0]];
-            const auto &v1 = mesh.vertices[faceVertices[1]];
-            const auto &v2 = mesh.vertices[faceVertices[2]];
+            const auto &v0 = mesh.vertices.at(faceVertices.at(0));
+            const auto &v1 = mesh.vertices.at(faceVertices.at(1));
+            const auto &v2 = mesh.vertices.at(faceVertices.at(2));
 
             glm::vec3 p0(v0.x(), v0.y(), v0.z());
             glm::vec3 p1(v1.x(), v1.y(), v1.z());
@@ -443,7 +444,7 @@ struct PhongCellBuffer : public Buffer
 
             for (auto vi : faceVertices)
             {
-                const auto &v = mesh.vertices[vi];
+                const auto &v = mesh.vertices.at(vi);
                 // Position
                 vertices.push_back(v.x());
                 vertices.push_back(v.y());
@@ -1165,12 +1166,24 @@ static struct State
     Polylla::TetgenReader reader;
     Polylla::VisFWriter writer;
     Controller controller;
-    std::vector<std::string> meshes = {"basic", "3D_100", "1000points", "socket"};
+    std::vector<std::string> meshes = {"mage", "3D_100", "1000points", "socket", };
     int currentMesh = 0;
     std::mt19937 gen;
     bool transformed = false;
     std::vector<int> owners;
     bool showTetras = false;
+    std::vector<float> hullVolumes;
+    std::vector<float> hullAreas;
+    std::vector<float> polyVolumes;
+    std::vector<float> polyAreas;
+    int loners;
+    int maxSize;
+    int minSize;
+    float avgSize;
+    float maxConvexity;
+    float minConvexity;
+    float avgConvexity;
+    int polyVertices;
 } state;
 
 // Define mouse callbacks now that State is declared
@@ -1296,6 +1309,44 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action, in
     }
 }
 
+void calculateStat()
+{
+    state.loners = 0;
+    state.minSize = std::numeric_limits<int>::max();
+    state.maxSize = std::numeric_limits<int>::min();
+    state.avgSize = 0;
+    state.minConvexity = std::numeric_limits<float>::max();
+    state.maxConvexity = std::numeric_limits<float>::min();
+    state.avgConvexity = 0;
+    std::unordered_set<int> used;
+    for (int i = 0; i < state.polyMesh.cells.size(); i++)
+    {
+        const auto &poly = state.polyMesh.cells[i];
+        state.loners += poly.cells.size() == 1;
+        state.minSize = std::min(state.minSize, static_cast<int>(poly.cells.size()));
+        state.maxSize = std::max(state.maxSize, static_cast<int>(poly.cells.size()));
+        state.avgSize += static_cast<float>(poly.cells.size());
+        float correctness = state.polyVolumes[i] / state.hullVolumes[i];
+        if (correctness == 0.0f)
+        {
+            std::cout << "Error: " << correctness << std::endl;
+            std::cout << "Volume: " << state.polyVolumes[i] << " Hull: " << state.hullVolumes[i] << std::endl;
+        }
+        state.minConvexity = std::min(state.minConvexity, correctness);
+        state.maxConvexity = std::max(state.maxConvexity, correctness);
+        state.avgConvexity += correctness;
+        for (int fi: poly.faces)
+        {
+            const auto& face = state.polyMesh.faces.at(fi);
+            for (int vi: face.vertices)
+                used.insert(vi);
+        }
+    }
+    state.avgSize /= state.polyMesh.cells.size();
+    state.avgConvexity /= state.polyMesh.cells.size();
+    state.polyVertices = used.size();
+}
+
 void paintMesh()
 {
     std::uniform_real_distribution<float> hueDistribution(0.0f, 360.0f);
@@ -1335,7 +1386,7 @@ void loadMesh(const std::string &meshName)
 
     for (size_t cellIndex = 0; cellIndex < mesh.cells.size(); cellIndex++)
     {
-        const auto &cell = mesh.cells[cellIndex];
+        const auto &cell = mesh.cells.at(cellIndex);
 
         auto buffer = std::make_unique<render::PhongCellBuffer>();
         buffer->init(cell, mesh);
@@ -1353,7 +1404,7 @@ void loadMesh(const std::string &meshName)
         glm::vec3 max = glm::vec3(-FLT_MAX);
         for (const auto &vi : cell.vertices)
         {
-            const auto &vertex = mesh.vertices[vi];
+            const auto &vertex = mesh.vertices.at(vi);
             auto v = toVec3(vertex);
             center += v;
             min = glm::min(min, v);
@@ -1577,11 +1628,16 @@ void drawSidebar()
             {
                 if (ImGui::Button("Start"))
                 {
-                    Polylla::CavityAlgorithm algorithm;
-                    state.polyMesh = algorithm(state.mesh);
+                    Polylla::CavityAlgorithm worker;
+                    state.polyMesh = worker(state.mesh, true);
                     state.transformed = true;
-                    state.owners = algorithm.owners;
+                    state.owners = worker.info.poly.seeds;
+                    state.hullAreas = worker.info.poly.hullAreas;
+                    state.hullVolumes = worker.info.poly.hullVolumes;
+                    state.polyAreas = worker.info.poly.areas;
+                    state.polyVolumes = worker.info.poly.volumes;
                     paintMesh();
+                    calculateStat();
                 }
                 if (ImGui::Button(state.showTetras ? "Hide Tetras" : "Show Tetras"))
                 {
@@ -1596,6 +1652,20 @@ void drawSidebar()
             else
             {
                 ImGui::Text("Not implemented");
+            }
+            if (state.transformed)
+            {
+                ImGui::Spacing();
+                ImGui::Text("Statistics");
+                ImGui::Separator();
+                ImGui::Text("%d loners of %d cells (%.2f %%)", state.loners, state.polyMesh.cells.size(), 100.0f * state.loners / state.polyMesh.cells.size());
+                ImGui::Text("Min Size: %d", state.minSize);
+                ImGui::Text("Max Size: %d", state.maxSize);
+                ImGui::Text("Avg Size: %.2f", state.avgSize);
+                ImGui::Text("Min Correctness: %.2f", state.minConvexity);
+                ImGui::Text("Max Correctness: %.2f", state.maxConvexity);
+                ImGui::Text("Avg Correctness: %.2f", state.avgConvexity);
+                ImGui::Text("Poly Vertices: %d", state.polyVertices);
             }
 
             ImGui::EndTabItem();
@@ -1664,6 +1734,19 @@ void drawSidebar()
                 ImGui::EndTooltip();
             }
 
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Details"))
+        {
+            for (int i = 0; i < state.polyMesh.cells.size(); i++)
+            {
+                ImGui::Text("Cell %d", i);
+                ImGui::Text("  Volume: %f", state.polyVolumes[i]);
+                ImGui::Text("  Area: %f", state.polyAreas[i]);
+                ImGui::Text("  Hull Volume: %f", state.hullVolumes[i]);
+                ImGui::Text("  Hull Area: %f", state.hullAreas[i]);
+            }
             ImGui::EndTabItem();
         }
 

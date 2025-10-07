@@ -1,3 +1,5 @@
+#include "ConvexHull.hpp"
+
 #include <gpolylla/polylla.h>
 
 #include <algorithm>
@@ -163,3 +165,4 @@ bool Polyhedron::operator==(const Polyhedron &other) const
     return sorted_vertices == other_sorted_vertices && sorted_faces == other_sorted_faces &&
            sorted_cells == other_sorted_cells;
 }
+

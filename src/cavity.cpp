@@ -1,3 +1,4 @@
+#include "QuickHull.hpp"
 #include "utils.h"
 #include <algorithm>
 #include <set>
@@ -149,6 +150,57 @@ void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
 };
 
 void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
+    // Add the loners to the best neighbour
+    for (const auto& p: result->cells)
+    {
+        if (p.cells.size() > 1) continue;
+
+        int ti = p.cells.at(0);
+        const auto& t = result->tetras.at(ti);
+        const auto& cavity = info->cavities.at(ti);
+
+        int best = -1;
+        float bestValue = numeric_limits<float>::max();
+
+        for (int fi : t.faces)
+        {
+            const auto& f = result->faces.at(fi);
+            int nextTi = f.tetras[0];
+            if (nextTi == ti)
+                nextTi = f.tetras[1];
+
+            if (nextTi == -1) continue;
+
+            // const auto& next = result->cells.at(nextTi);
+
+            const auto& nextCavity = info->cavities.at(nextTi);
+
+            float distance = (nextCavity.center - cavity.center).norm();
+            float value = distance / nextCavity.radius;
+
+            if (value < bestValue)
+            {
+                bestValue = value;
+                best = nextTi;
+            }
+        }
+
+        if (best != -1)
+        {
+            int pi = result->tetras.at(best).polyhedron;
+            result->cells.at(pi).cells.push_back(ti);
+            result->tetras.at(ti).polyhedron = pi;
+        }
+    }
+
+    vector<Polyhedron> newPolys;
+    for (auto& t: result->tetras)
+    {
+        int idx = newPolys.size();
+        newPolys.push_back(result->cells.at(t.polyhedron));
+        t.polyhedron = idx;
+    }
+    result->cells = newPolys;
     // For now, this function is a placeholder
     // In a complete implementation, it would handle:
     // - Boundary face identification
@@ -159,34 +211,39 @@ void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
 
 CavityAlgorithm::Information getInfo(const CavityInfo &src, const PolyMesh &mesh)
 {
+
     CavityAlgorithm::Information info;
     info.cavity.centers.reserve(src.cavities.size());
     info.cavity.radius.reserve(src.cavities.size());
-    for (auto sphere : src.cavities)
+    for (auto [center, radius] : src.cavities)
     {
-        info.cavity.centers.push_back(sphere.center);
-        info.cavity.radius.push_back(sphere.radius);
+        info.cavity.centers.push_back(center);
+        info.cavity.radius.push_back(radius);
     }
 
     info.poly.hullVolumes.reserve(mesh.cells.size());
     info.poly.volumes.reserve(mesh.cells.size());
-    info.poly.seeds.reserve(mesh.cells.size());
-    for (auto poly : mesh.cells)
+    info.poly.hullAreas.reserve(mesh.cells.size());
+    info.poly.areas.reserve(mesh.cells.size());
+    info.poly.seeds = src.owners;
+    for (const auto& poly : mesh.cells)
     {
-        // info.poly.hullVolumes.push_back();
-        // info.poly.hullAreas.push_back();
+        Hull hull(poly, mesh);
+        info.poly.hullVolumes.push_back(hull.volume());
+        info.poly.hullAreas.push_back(hull.area());
         info.poly.areas.push_back(polyhedronArea(poly, mesh));
         info.poly.volumes.push_back(polyhedronVolume(poly, mesh));
     }
+    return info;
 }
 
-PolyMesh CavityAlgorithm::operator()(const Mesh &mesh, bool withInfo = false)
+PolyMesh CavityAlgorithm::operator()(const Mesh &mesh, bool withInfo)
 {
     PolyMesh result;
     CavityInfo info;
     labelCavities(mesh, &result, &info);
     buildCavities(mesh, &result, &info);
-    fixCavities(mesh, &result, &info);
+    // fixCavities(mesh, &result, &info);
     if (withInfo)
     {
         this->info = getInfo(info, result);

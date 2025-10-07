@@ -107,33 +107,42 @@ class Algorithm
 {
   public:
     virtual ~Algorithm() = default;
-    virtual PolyMesh operator()(const Mesh &mesh, bool withInfo = false) = 0;
+    virtual PolyMesh operator()(const Mesh &mesh) = 0;
 };
 
 class CavityAlgorithm : public Algorithm
 {
   public:
-    PolyMesh operator()(const Mesh &mesh, bool withInfo = false) override;
+    PolyMesh operator()(const Mesh &mesh) override;
 
-    struct Information
+    struct Cavity
     {
-        struct
-        {
-            std::vector<double> radius;
-            std::vector<Vertex> centers;
-        } cavity;
-
-        struct
-        {
-            std::vector<int> seeds;
-            std::vector<double> volumes;
-            std::vector<double> areas;
-            std::vector<double> hullVolumes;
-            std::vector<double> hullAreas;
-        } poly;
+        double radius;
+        Vertex center;
+        int tetra;
     };
 
-    Information info;
+    std::vector<Cavity> getCavities() const;
+
+    // struct Information
+    // {
+    //     struct
+    //     {
+    //         std::vector<double> radius;
+    //         std::vector<Vertex> centers;
+    //     } cavity;
+    //
+    //     struct
+    //     {
+    //         std::vector<int> seeds;
+    //         std::vector<float> volumes;
+    //         std::vector<float> areas;
+    //         std::vector<float> hullVolumes;
+    //         std::vector<float> hullAreas;
+    //     } poly;
+    // };
+    //
+    // Information info;
 };
 } // namespace Polylla
 

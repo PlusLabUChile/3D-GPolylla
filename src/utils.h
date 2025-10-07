@@ -4,9 +4,14 @@
 
 namespace Polylla
 {
-struct Hull
+class Hull
 {
-    std::vector<int> faces;
+    std::vector<Face> faces;
+    std::vector<Vertex> vertices;
+public:
+    Hull(const Polyhedron& poly, const PolyMesh& mesh);
+    float area() const;
+    float volume() const;
 };
 
 constexpr int FACE_CONFIGURATION[4][3] = {
@@ -43,11 +48,12 @@ template <typename T> bool sameContent(const T *a, const T *b, size_t size)
 }
 Eigen::Vector3f normal(const Vertex &v0, const Vertex &v1, const Vertex &v2);
 float isOutside(const Vertex &v0, const Vertex &v1, const Vertex &v2, const Vertex &other);
+int opposite(const Face &f, const Tetrahedron &tetra);
 
 float polyhedronArea(const Polyhedron &polyhedron, const PolyMesh &mesh);
 float polyhedronVolume(const Polyhedron &polyhedron, const PolyMesh &mesh);
 
-Hull polyhedronHull(const Polyhedron &polyhedron, const PolyMesh &mesh);
+// Hull polyhedronHull(const Polyhedron &polyhedron, const PolyMesh &mesh);
 } // namespace Polylla
 
 #endif // UTILS_H

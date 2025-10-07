@@ -29,6 +29,7 @@ vector<Vertex> buildVertices(const string &file)
     headerStream >> numVertices;
     verts.reserve(numVertices);
 
+    int first = 1;
     while (getline(nodeStream, line))
     {
         istringstream lineStream(line);
@@ -36,6 +37,13 @@ vector<Vertex> buildVertices(const string &file)
         lineStream >> token;
         if (token == "#")
             continue; // Skip comments
+
+        if (first)
+        {
+            if (stoi(token) == 1)
+                verts.emplace_back(-1, -1, -1);
+            first = 0;
+        }
         float x, y, z;
         lineStream >> x >> y >> z;
         verts.emplace_back(x, y, z);
@@ -59,6 +67,7 @@ vector<Tetrahedron> buildCells(const string &file)
     int numCells;
     headerStream >> numCells;
     cells.reserve(numCells);
+    int first = 1;
     while (getline(eleStream, line))
     {
         istringstream lineStream(line);
@@ -66,6 +75,13 @@ vector<Tetrahedron> buildCells(const string &file)
         lineStream >> token;
         if (token == "#")
             continue; // Skip comments
+        if (first)
+        {
+            if (stoi(token) == 1)
+                cells.emplace_back(-1, -1, -1, -1);
+            first = 0;
+        }
+
         int v0, v1, v2, v3;
         lineStream >> v0 >> v1 >> v2 >> v3;
         cells.emplace_back(v0, v1, v2, v3);
