@@ -6,52 +6,47 @@
 using namespace Polylla;
 using namespace std;
 
-struct Sphere
+CavityAlgorithm::Cavity circumsphere(int ti, const Mesh &mesh)
 {
-    Vertex center;
-    float radius;
+    using namespace Eigen;
+    Matrix4d A, X, Y, Z;
+    const Tetrahedron &tetra = mesh.tetras[ti];
+    const Vertex &p0 = mesh.vertices[tetra.vertices[0]];
+    const Vertex &p1 = mesh.vertices[tetra.vertices[1]];
+    const Vertex &p2 = mesh.vertices[tetra.vertices[2]];
+    const Vertex &p3 = mesh.vertices[tetra.vertices[3]];
 
-    Sphere static circumsphere(int ti, const Mesh &mesh)
-    {
-        using namespace Eigen;
-        Matrix4d A, X, Y, Z;
-        const Tetrahedron &tetra = mesh.cells[ti];
-        const Vertex &p0 = mesh.vertices[tetra.vertices[0]];
-        const Vertex &p1 = mesh.vertices[tetra.vertices[1]];
-        const Vertex &p2 = mesh.vertices[tetra.vertices[2]];
-        const Vertex &p3 = mesh.vertices[tetra.vertices[3]];
+    A << p0.x(), p0.y(), p0.z(), 1, p1.x(), p1.y(), p1.z(), 1, p2.x(), p2.y(), p2.z(), 1, p3.x(), p3.y(), p3.z(), 1;
 
-        A << p0.x(), p0.y(), p0.z(), 1, p1.x(), p1.y(), p1.z(), 1, p2.x(), p2.y(), p2.z(), 1, p3.x(), p3.y(), p3.z(), 1;
+    X << p0.squaredNorm(), p0.y(), p0.z(), 1, p1.squaredNorm(), p1.y(), p1.z(), 1, p2.squaredNorm(), p2.y(), p2.z(),
+        1, p3.squaredNorm(), p3.y(), p3.z(), 1;
 
-        X << p0.squaredNorm(), p0.y(), p0.z(), 1, p1.squaredNorm(), p1.y(), p1.z(), 1, p2.squaredNorm(), p2.y(), p2.z(),
-            1, p3.squaredNorm(), p3.y(), p3.z(), 1;
+    Y << p0.squaredNorm(), p0.x(), p0.z(), 1, p1.squaredNorm(), p1.x(), p1.z(), 1, p2.squaredNorm(), p2.x(), p2.z(),
+        1, p3.squaredNorm(), p3.x(), p3.z(), 1;
 
-        Y << p0.squaredNorm(), p0.x(), p0.z(), 1, p1.squaredNorm(), p1.x(), p1.z(), 1, p2.squaredNorm(), p2.x(), p2.z(),
-            1, p3.squaredNorm(), p3.x(), p3.z(), 1;
+    Z << p0.squaredNorm(), p0.x(), p0.y(), 1, p1.squaredNorm(), p1.x(), p1.y(), 1, p2.squaredNorm(), p2.x(), p2.y(),
+        1, p3.squaredNorm(), p3.x(), p3.y(), 1;
 
-        Z << p0.squaredNorm(), p0.x(), p0.y(), 1, p1.squaredNorm(), p1.x(), p1.y(), 1, p2.squaredNorm(), p2.x(), p2.y(),
-            1, p3.squaredNorm(), p3.x(), p3.y(), 1;
+    double a = A.determinant();
+    double Dx = X.determinant();
+    double Dy = -Y.determinant();
+    double Dz = Z.determinant();
 
-        double a = A.determinant();
-        double Dx = X.determinant();
-        double Dy = -Y.determinant();
-        double Dz = Z.determinant();
+    CavityAlgorithm::Cavity sphere;
+    sphere.center = Vertex(Dx / (2 * a), Dy / (2 * a), Dz / (2 * a));
+    sphere.radius = (sphere.center - p0).norm();
+    sphere.tetra = ti;
+    return sphere;
+}
 
-        Sphere sphere;
-        sphere.center = Vertex(Dx / (2 * a), Dy / (2 * a), Dz / (2 * a));
-        sphere.radius = (sphere.center - p0).norm();
-        return sphere;
-    }
-
-    bool isIn(const Vertex &point) const
-    {
-        return (center - point).norm() < radius + TOLERANCE;
-    }
-};
+bool CavityAlgorithm::Cavity::isInside(const Vertex &point) const
+{
+    return (center - point).norm() < radius + TOLERANCE;
+}
 
 struct CavityInfo
 {
-    vector<Sphere> cavities;
+    vector<CavityAlgorithm::Cavity> cavities;
     vector<int> seeds;
     vector<int> owners;
 };
@@ -70,7 +65,7 @@ struct DepthFirstSearch
         info->owners[currentTi] = seed;
         tetras->push_back(currentTi);
 
-        const Tetrahedron &currentTetra = mesh->cells[currentTi];
+        const Tetrahedron &currentTetra = mesh->tetras[currentTi];
 
         for (int vi : currentTetra.vertices)
         {
@@ -97,8 +92,8 @@ struct DepthFirstSearch
                 continue;
             }
 
-            const Sphere &cavity = info->cavities[seed];
-            if (cavity.isIn(info->cavities[nextTi].center))
+            const auto &cavity = info->cavities[seed];
+            if (cavity.isInside(info->cavities[nextTi].center))
                 (*this)(nextTi, seed, points, faces, tetras);
             else
                 faces->push_back(fi);
@@ -108,9 +103,9 @@ struct DepthFirstSearch
 
 void labelCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
 {
-    for (int ti = 0; ti < mesh.cells.size(); ++ti)
+    for (int ti = 0; ti < mesh.tetras.size(); ++ti)
     {
-        const Sphere &sphere = Sphere::circumsphere(ti, mesh);
+        const auto &sphere = circumsphere(ti, mesh);
         info->cavities.push_back(sphere);
         info->seeds.push_back(ti);
     }
@@ -118,7 +113,7 @@ void labelCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
     std::sort(info->seeds.begin(), info->seeds.end(),
               [&](int i, int j) { return info->cavities[i].radius < info->cavities[j].radius; });
 
-    info->owners = vector<int>(mesh.cells.size(), -1);
+    info->owners = vector<int>(mesh.tetras.size(), -1);
 }
 
 void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
@@ -128,7 +123,7 @@ void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
     // Copy vertices from the original mesh
     result->vertices = mesh.vertices;
     result->faces = mesh.faces;
-    result->tetras = mesh.cells;
+    result->tetras = mesh.tetras;
 
     for (int ti : info->seeds)
     {
@@ -208,46 +203,49 @@ void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
     // - Edge case handling
     // - Quality checks
 };
+//
+// CavityAlgorithm::Information getInfo(const CavityInfo &src, const PolyMesh &mesh)
+// {
+//
+//     CavityAlgorithm::Information info;
+//     info.cavity.centers.reserve(src.cavities.size());
+//     info.cavity.radius.reserve(src.cavities.size());
+//     for (auto [center, radius] : src.cavities)
+//     {
+//         info.cavity.centers.push_back(center);
+//         info.cavity.radius.push_back(radius);
+//     }
+//
+//     info.poly.hullVolumes.reserve(mesh.cells.size());
+//     info.poly.volumes.reserve(mesh.cells.size());
+//     info.poly.hullAreas.reserve(mesh.cells.size());
+//     info.poly.areas.reserve(mesh.cells.size());
+//     info.poly.seeds = src.owners;
+//     for (const auto& poly : mesh.cells)
+//     {
+//         Hull hull(poly, mesh);
+//         info.poly.hullVolumes.push_back(hull.volume());
+//         info.poly.hullAreas.push_back(hull.area());
+//         info.poly.areas.push_back(polyhedronArea(poly, mesh));
+//         info.poly.volumes.push_back(polyhedronVolume(poly, mesh));
+//     }
+//     return info;
+// }
 
-CavityAlgorithm::Information getInfo(const CavityInfo &src, const PolyMesh &mesh)
-{
-
-    CavityAlgorithm::Information info;
-    info.cavity.centers.reserve(src.cavities.size());
-    info.cavity.radius.reserve(src.cavities.size());
-    for (auto [center, radius] : src.cavities)
-    {
-        info.cavity.centers.push_back(center);
-        info.cavity.radius.push_back(radius);
-    }
-
-    info.poly.hullVolumes.reserve(mesh.cells.size());
-    info.poly.volumes.reserve(mesh.cells.size());
-    info.poly.hullAreas.reserve(mesh.cells.size());
-    info.poly.areas.reserve(mesh.cells.size());
-    info.poly.seeds = src.owners;
-    for (const auto& poly : mesh.cells)
-    {
-        Hull hull(poly, mesh);
-        info.poly.hullVolumes.push_back(hull.volume());
-        info.poly.hullAreas.push_back(hull.area());
-        info.poly.areas.push_back(polyhedronArea(poly, mesh));
-        info.poly.volumes.push_back(polyhedronVolume(poly, mesh));
-    }
-    return info;
-}
-
-PolyMesh CavityAlgorithm::operator()(const Mesh &mesh, bool withInfo)
+PolyMesh CavityAlgorithm::operator()(const Mesh &mesh)
 {
     PolyMesh result;
     CavityInfo info;
     labelCavities(mesh, &result, &info);
     buildCavities(mesh, &result, &info);
     // fixCavities(mesh, &result, &info);
-    if (withInfo)
-    {
-        this->info = getInfo(info, result);
-    }
+    // if (withInfo)
+    // {
+    //     this->info = getInfo(info, result);
+    // }
     // owners = info.owners;
+    cavities_ = info.cavities;
+    seeds_ = info.seeds;
+    owners_ = info.owners;
     return result;
 }

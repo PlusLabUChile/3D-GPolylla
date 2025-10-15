@@ -1,4 +1,5 @@
 #include "ConvexHull.hpp"
+#include "utils.h"
 
 #include <gpolylla/polylla.h>
 
@@ -165,4 +166,53 @@ bool Polyhedron::operator==(const Polyhedron &other) const
     return sorted_vertices == other_sorted_vertices && sorted_faces == other_sorted_faces &&
            sorted_cells == other_sorted_cells;
 }
+
+// Areas and volumes
+
+float Face::area(const Mesh &mesh) const
+{
+    const Vertex &v0 = mesh.vertices[vertices[0]];
+    const Vertex &v1 = mesh.vertices[vertices[1]];
+    const Vertex &v2 = mesh.vertices[vertices[2]];
+    return 0.5f * normal(v0, v1, v2).norm();
+}
+
+float Tetrahedron::volume(const Mesh &mesh) const
+{
+    return 1/6 * abs(signedSixthVolume(mesh.vertices[vertices[0]], mesh.vertices[vertices[1]], mesh.vertices[vertices[2]], mesh.vertices[vertices[3]]));
+}
+
+float Tetrahedron::area(const Mesh &mesh) const
+{
+    float totalArea = 0.0f;
+    for (int fi: faces)
+    {
+        const Face &f = mesh.faces.at(fi);
+        totalArea += f.area(mesh);
+    }
+    return totalArea;
+}
+
+float Polyhedron::volume(const PolyMesh &mesh) const
+{
+    float volume = 0.0f;
+    for (int ti: cells)
+    {
+        const Tetrahedron &t = mesh.tetras.at(ti);
+        volume += t.volume(mesh);
+    }
+    return volume;
+}
+
+float Polyhedron::area(const PolyMesh &mesh) const
+{
+    float totalArea = 0.0f;
+    for (int fi: faces)
+    {
+        const Face &f = mesh.faces.at(fi);
+        totalArea += f.area(mesh);
+    }
+    return totalArea;
+}
+
 

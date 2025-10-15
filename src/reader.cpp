@@ -130,9 +130,9 @@ void buildConnectivity(Mesh *mesh)
     using facePos = std::pair<int, int>;
     unordered_map<Face, vector<facePos>> faceMap;
 
-    for (int ti = 0; ti < mesh->cells.size(); ++ti)
+    for (int ti = 0; ti < mesh->tetras.size(); ++ti)
     {
-        const Tetrahedron &t = mesh->cells[ti];
+        const Tetrahedron &t = mesh->tetras[ti];
         for (int i = 0; i < 4; ++i)
         {
             const int *config = FACE_CONFIGURATION[i];
@@ -152,7 +152,7 @@ void buildConnectivity(Mesh *mesh)
         for (const auto &[ti, j] : positions)
         {
             f.tetras[i] = ti;
-            mesh->cells[ti].faces[j] = fi; // Associate face with tetrahedron
+            mesh->tetras[ti].faces[j] = fi; // Associate face with tetrahedron
             i++;
         }
     }
@@ -187,9 +187,9 @@ Mesh TetgenReader::readMesh()
 {
     Mesh m;
     m.vertices = buildVertices(this->nodeFile);
-    m.cells = buildCells(this->eleFile);
+    m.tetras = buildCells(this->eleFile);
 
-    m.faces = buildFaces(m.vertices, m.cells);
+    m.faces = buildFaces(m.vertices, m.tetras);
     buildConnectivity(&m);
     return m;
 }

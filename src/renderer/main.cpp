@@ -5,7 +5,9 @@
 // - Navigation bar with menu items
 // - Sidebar with tools and properties
 // - Demo window for ImGui examples
+#include "gpolylla/stat.h"
 #include "imgui_internal.h"
+
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
@@ -1120,15 +1122,15 @@ bool rayIntersectsTetrahedron(const Ray &ray, const Polylla::Tetrahedron &cell, 
 // Find the closest cell that intersects with the ray
 int findIntersectedCell(const Ray &ray, const Polylla::Mesh &mesh)
 {
-    if (mesh.cells.empty())
+    if (mesh.tetras.empty())
         return -1;
 
     int closestCellIndex = -1;
     float closestDistance = FLT_MAX;
 
-    for (size_t i = 0; i < mesh.cells.size(); i++)
+    for (size_t i = 0; i < mesh.tetras.size(); i++)
     {
-        const auto intersection = ray.intersect(mesh.cells[i], mesh);
+        const auto intersection = ray.intersect(mesh.tetras[i], mesh);
         if (intersection)
         {
             if (glm::length(intersection.value() - ray.origin) < closestDistance)
@@ -1172,6 +1174,9 @@ static struct State
     bool transformed = false;
     std::vector<int> owners;
     bool showTetras = false;
+    Polylla::MeshStat stats;
+    std::vector<float> kernelVolumes;
+    std::vector<float> kernelAreas;
     std::vector<float> hullVolumes;
     std::vector<float> hullAreas;
     std::vector<float> polyVolumes;
@@ -1276,7 +1281,7 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action, in
                                                      render::state.frame.projection(), render::state.camera.view());
 
             // Check if mesh is loaded
-            if (!app::state.mesh.cells.empty() && !app::state.mesh.vertices.empty())
+            if (!app::state.mesh.tetras.empty() && !app::state.mesh.vertices.empty())
             {
 
                 // Find intersected cell
@@ -1350,7 +1355,7 @@ void calculateStat()
 void paintMesh()
 {
     std::uniform_real_distribution<float> hueDistribution(0.0f, 360.0f);
-    for (size_t i = 0; i < state.mesh.cells.size(); i++)
+    for (size_t i = 0; i < state.mesh.tetras.size(); i++)
     {
         float hue = hueDistribution(state.gen);
         float saturation = 0.8f; // High saturation for vibrant colors
@@ -1384,9 +1389,9 @@ void loadMesh(const std::string &meshName)
     glm::vec3 minBounds(FLT_MAX);
     glm::vec3 maxBounds(-FLT_MAX);
 
-    for (size_t cellIndex = 0; cellIndex < mesh.cells.size(); cellIndex++)
+    for (size_t cellIndex = 0; cellIndex < mesh.tetras.size(); cellIndex++)
     {
-        const auto &cell = mesh.cells.at(cellIndex);
+        const auto &cell = mesh.tetras.at(cellIndex);
 
         auto buffer = std::make_unique<render::PhongCellBuffer>();
         buffer->init(cell, mesh);
@@ -1543,7 +1548,7 @@ void drawSidebar()
             ImGui::TextWrapped("Node File: %s", state.reader.nodeFile.c_str());
             ImGui::TextWrapped("Ele File: %s", state.reader.eleFile.c_str());
 
-            ImGui::Text("Cells: %zu", state.mesh.cells.size());
+            ImGui::Text("Cells: %zu", state.mesh.tetras.size());
             ImGui::Text("Vertices: %zu", state.mesh.vertices.size());
             ImGui::Text("Faces: %zu", state.mesh.faces.size());
 
@@ -1629,7 +1634,7 @@ void drawSidebar()
                 if (ImGui::Button("Start"))
                 {
                     Polylla::CavityAlgorithm worker;
-                    state.polyMesh = worker(state.mesh, true);
+                    state.polyMesh = worker(state.mesh);
                     state.transformed = true;
                     state.owners = worker.info.poly.seeds;
                     state.hullAreas = worker.info.poly.hullAreas;

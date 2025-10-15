@@ -9,6 +9,9 @@
 namespace Polylla
 {
 
+class PolyMesh;
+class Mesh;
+
 struct Vertex : Eigen::Vector3f
 {
     using Eigen::Vector3f::Vector3f;
@@ -26,6 +29,7 @@ struct Face
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Face &other) const;
+    float area(const Mesh &mesh) const;
 };
 
 struct Tetrahedron
@@ -41,6 +45,8 @@ struct Tetrahedron
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Tetrahedron &other) const;
+    float volume(const Mesh &mesh) const;
+    float area(const Mesh &mesh) const;
 };
 
 struct Polyhedron
@@ -55,6 +61,8 @@ struct Polyhedron
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Polyhedron &other) const;
+    float area(const PolyMesh &mesh) const;
+    float volume(const PolyMesh &mesh) const;
 };
 
 class Mesh
@@ -62,15 +70,12 @@ class Mesh
   public:
     std::vector<Vertex> vertices;
     std::vector<Face> faces;
-    std::vector<Tetrahedron> cells;
+    std::vector<Tetrahedron> tetras;
 };
 
-class PolyMesh
+class PolyMesh : public Mesh
 {
   public:
-    std::vector<Vertex> vertices;
-    std::vector<Face> faces;
-    std::vector<Tetrahedron> tetras;
     std::vector<Polyhedron> cells;
 };
 
@@ -120,9 +125,27 @@ class CavityAlgorithm : public Algorithm
         double radius;
         Vertex center;
         int tetra;
+
+        bool isInside(const Vertex &p) const;
     };
 
-    std::vector<Cavity> getCavities() const;
+    const std::vector<Cavity> &cavities() const
+    {
+        return cavities_;
+    };
+    const std::vector<int> &owners() const
+    {
+        return owners_;
+    };
+    const std::vector<int> &seeds() const
+    {
+        return seeds_;
+    };
+
+  private:
+    std::vector<Cavity> cavities_;
+    std::vector<int> owners_;
+    std::vector<int> seeds_;
 
     // struct Information
     // {
