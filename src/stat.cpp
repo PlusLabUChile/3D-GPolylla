@@ -25,7 +25,7 @@ float generalVolume(const std::vector<Vertex> &vertices, const std::vector<Face>
         const auto &v2 = vertices[f.vertices[2]];
         signedVolume += signedSixthVolume(ref, v0, v1, v2);
     }
-    return 1/6 * abs(signedVolume);
+    return abs(signedVolume) / 6.0f;
 }
 
 float generalArea(const std::vector<Vertex> &vertices, const std::vector<Face> &faces)
@@ -38,7 +38,7 @@ float generalArea(const std::vector<Vertex> &vertices, const std::vector<Face> &
         const auto &v2 = vertices[f.vertices[2]];
         totalArea += normal(v0, v1, v2).norm();
     }
-    return .5 * totalArea;
+    return .5f * totalArea;
 }
 
 
@@ -79,21 +79,30 @@ float Hull::area() const
     PolyhedronKernel k;
     std::vector<cinolib::vec3d> kVertices;
     std::vector<std::vector<uint>> kFaces;
+    std::unordered_map<int, int> vertLookup;
     kVertices.reserve(poly.vertices.size());
     for (int vi : poly.vertices)
     {
+        vertLookup[vi] = kVertices.size();
         const auto& vert = mesh.vertices[vi];
-        vertices.push_back(vert);
         kVertices.emplace_back(vert.x(), vert.y(), vert.z());
     }
 
-    for (int fi : poly.faces)
+    auto directedFaces = getDirectedFaces(poly, mesh);
+
+    for (auto face : directedFaces)
     {
-        const auto& face = mesh.faces[fi];
-        kFaces.emplace_back(face.vertices.begin(), face.vertices.end());
+        // const auto& face = mesh.faces[fi];
+        std::vector<uint> faceVertices(3);
+        for (int i = 0; i < 3; ++i)
+        {
+            faceVertices[i] = vertLookup[face[i]];
+        }
+        kFaces.push_back(faceVertices);
     }
     cinolib::Polygonmesh<> m(kVertices, kFaces);
     k.initialize(m.vector_verts());
+    auto normals = m.vector_poly_normals();
     k.compute(m.vector_verts(), m.vector_polys(), m.vector_poly_normals());
 
     vertices.reserve(k.kernel_verts.size());
@@ -102,12 +111,19 @@ float Hull::area() const
         vertices.emplace_back(v.x(), v.y(), v.z());
     }
 
-    faces.reserve(k.kernel_faces.size());
+    // faces.(k.kernel_faces.size());
     for (const auto& f : k.kernel_faces)
     {
-        if (f.size() != 3)
+        if (f.size() > 3)
         {
-            std::cerr << "Error while computing kernel, face larger than a triangle found" << std::endl;
+            // std::cerr << "Error while computing kernel, face larger than a triangle found (" << f.size() << ")" << std::endl;
+            // continue;
+            // make a triangle fan from the face
+            uint root = f.at(0);
+            for (uint i = 1; i <f.size() -1 ; ++i)
+            {
+                faces.emplace_back(root, f.at(i), f.at(i+1));
+            }
             continue;
         }
 
@@ -127,6 +143,12 @@ float Kernel::area() const
 }
 
 
+bool Kernel::empty() const
+{
+    return vertices.empty();
+}
+
+
 //  MeshStat::MeshStat(const PolyMesh &mesh)
 // {
 //     kernels.reserve(mesh.cells.size());
@@ -140,7 +162,7 @@ float Kernel::area() const
 //     }
 // }
 
-std::vector<PolyStat> computeStats(const PolyMesh &mesh)
+std::vector<PolyStat> Polylla::computeStats(const PolyMesh &mesh)
 {
     std::vector<PolyStat> stats;
     stats.reserve(mesh.cells.size());
@@ -148,7 +170,13 @@ std::vector<PolyStat> computeStats(const PolyMesh &mesh)
     {
         PolyStat stat;
         stat.hull = Hull(poly, mesh);
-        stat.kernel = Kernel(poly, mesh);
+        Kernel possibleKernel(poly, mesh);
+
+        stat.kernel = possibleKernel;
+        if (possibleKernel.empty())
+        {
+            stat.kernel = std::nullopt;
+        }
 
         float minSize = std::numeric_limits<float>::max();
         float maxSize = std::numeric_limits<float>::min();
@@ -160,18 +188,20 @@ std::vector<PolyStat> computeStats(const PolyMesh &mesh)
             {
                 const auto &v0 = mesh.vertices[f.vertices[i]];
                 const auto &v1 = mesh.vertices[f.vertices[(i + 1) % 3]];
-                float edgeSize = (v1 - v0).size();
+                float edgeSize = (v1 - v0).norm();
                 minSize = std::min(minSize, edgeSize);
                 maxSize = std::max(maxSize, edgeSize);
             }
         }
 
         stat.edgeRatio = minSize / maxSize;
-        stat.volumeRatio = poly.volume(mesh) / stat.hull.volume();
+        stat.volumeRatio = 0.0f;
+        if (stat.kernel)
+            stat.volumeRatio = poly.volume(mesh) / stat.kernel.value().volume();
         stat.surfaceRatio = poly.area(mesh) / stat.hull.area();
-
-
+        stats.push_back(stat);
     }
 
     return stats;
 }
+

@@ -5,7 +5,6 @@
 // - Navigation bar with menu items
 // - Sidebar with tools and properties
 // - Demo window for ImGui examples
-#include "gpolylla/stat.h"
 #include "imgui_internal.h"
 
 #include <glad/gl.h>
@@ -30,6 +29,7 @@
 #include <unordered_set>
 
 #include <gpolylla/polylla.h>
+#include <gpolylla/stat.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -1174,20 +1174,21 @@ static struct State
     bool transformed = false;
     std::vector<int> owners;
     bool showTetras = false;
-    Polylla::MeshStat stats;
-    std::vector<float> kernelVolumes;
-    std::vector<float> kernelAreas;
-    std::vector<float> hullVolumes;
-    std::vector<float> hullAreas;
-    std::vector<float> polyVolumes;
-    std::vector<float> polyAreas;
+    std::vector<Polylla::PolyStat> stats;
     int loners;
     int maxSize;
     int minSize;
     float avgSize;
-    float maxConvexity;
-    float minConvexity;
-    float avgConvexity;
+    float maxEdgeRatio;
+    float minEdgeRatio;
+    float avgEdgeRatio;
+    float maxVolumeRatio;
+    float minVolumeRatio;
+    float avgVolumeRatio;
+    float maxSurfaceRatio;
+    float minSurfaceRatio;
+    float avgSurfaceRatio;
+    float kernelRatio;
     int polyVertices;
 } state;
 
@@ -1314,42 +1315,56 @@ static void mouse_button_callback(GLFWwindow *window, int button, int action, in
     }
 }
 
-void calculateStat()
+void computeStats()
 {
     state.loners = 0;
     state.minSize = std::numeric_limits<int>::max();
     state.maxSize = std::numeric_limits<int>::min();
     state.avgSize = 0;
-    state.minConvexity = std::numeric_limits<float>::max();
-    state.maxConvexity = std::numeric_limits<float>::min();
-    state.avgConvexity = 0;
+    state.minEdgeRatio = std::numeric_limits<float>::max();
+    state.maxEdgeRatio = std::numeric_limits<float>::min();
+    state.avgEdgeRatio = 0;
+    state.minVolumeRatio = std::numeric_limits<float>::max();
+    state.maxVolumeRatio = std::numeric_limits<float>::min();
+    state.avgVolumeRatio = 0;
+    state.minSurfaceRatio = std::numeric_limits<float>::max();
+    state.maxSurfaceRatio = std::numeric_limits<float>::min();
+    state.avgSurfaceRatio = 0;
+    int kernels = 0;
+    state.kernelRatio = 0;
     std::unordered_set<int> used;
+    state.stats = Polylla::computeStats(state.polyMesh);
     for (int i = 0; i < state.polyMesh.cells.size(); i++)
     {
         const auto &poly = state.polyMesh.cells[i];
+        const auto& stat = state.stats[i];
         state.loners += poly.cells.size() == 1;
         state.minSize = std::min(state.minSize, static_cast<int>(poly.cells.size()));
         state.maxSize = std::max(state.maxSize, static_cast<int>(poly.cells.size()));
         state.avgSize += static_cast<float>(poly.cells.size());
-        float correctness = state.polyVolumes[i] / state.hullVolumes[i];
-        if (correctness == 0.0f)
-        {
-            std::cout << "Error: " << correctness << std::endl;
-            std::cout << "Volume: " << state.polyVolumes[i] << " Hull: " << state.hullVolumes[i] << std::endl;
-        }
-        state.minConvexity = std::min(state.minConvexity, correctness);
-        state.maxConvexity = std::max(state.maxConvexity, correctness);
-        state.avgConvexity += correctness;
+        state.minEdgeRatio = std::min(state.minEdgeRatio, stat.edgeRatio);
+        state.maxEdgeRatio = std::max(state.maxEdgeRatio, stat.edgeRatio);
+        state.avgEdgeRatio += stat.edgeRatio;
+        state.minVolumeRatio = std::min(state.minVolumeRatio, stat.volumeRatio);
+        state.maxVolumeRatio = std::max(state.maxVolumeRatio, stat.volumeRatio);
+        state.avgVolumeRatio += stat.volumeRatio;
+        state.minSurfaceRatio = std::min(state.minSurfaceRatio, stat.surfaceRatio);
+        state.maxSurfaceRatio = std::max(state.maxSurfaceRatio, stat.surfaceRatio);
+        state.avgSurfaceRatio += stat.surfaceRatio;
         for (int fi: poly.faces)
         {
             const auto& face = state.polyMesh.faces.at(fi);
             for (int vi: face.vertices)
                 used.insert(vi);
         }
+        kernels += stat.kernel.has_value();
     }
     state.avgSize /= state.polyMesh.cells.size();
-    state.avgConvexity /= state.polyMesh.cells.size();
+    state.avgEdgeRatio /= state.polyMesh.cells.size();
+    state.avgVolumeRatio /= state.polyMesh.cells.size();
+    state.avgSurfaceRatio /= state.polyMesh.cells.size();
     state.polyVertices = used.size();
+    state.kernelRatio = static_cast<float>(kernels) / static_cast<float>(state.polyMesh.cells.size());
 }
 
 void paintMesh()
@@ -1635,14 +1650,10 @@ void drawSidebar()
                 {
                     Polylla::CavityAlgorithm worker;
                     state.polyMesh = worker(state.mesh);
-                    state.transformed = true;
-                    state.owners = worker.info.poly.seeds;
-                    state.hullAreas = worker.info.poly.hullAreas;
-                    state.hullVolumes = worker.info.poly.hullVolumes;
-                    state.polyAreas = worker.info.poly.areas;
-                    state.polyVolumes = worker.info.poly.volumes;
+                    state.owners = worker.owners();
                     paintMesh();
-                    calculateStat();
+                    computeStats();
+                    state.transformed = true;
                 }
                 if (ImGui::Button(state.showTetras ? "Hide Tetras" : "Show Tetras"))
                 {
@@ -1663,14 +1674,63 @@ void drawSidebar()
                 ImGui::Spacing();
                 ImGui::Text("Statistics");
                 ImGui::Separator();
-                ImGui::Text("%d loners of %d cells (%.2f %%)", state.loners, state.polyMesh.cells.size(), 100.0f * state.loners / state.polyMesh.cells.size());
+                ImGui::Text("%d loners of %lld cells (%.2f %%)", state.loners, state.polyMesh.cells.size(), 100.0f * state.loners / state.polyMesh.cells.size());
+                ImGui::Text("Vertices in polymesh: %d", state.polyVertices);
+                ImGui::Text("Kernel percentage: %.2f %%", state.kernelRatio * 100);
+                if (ImGui::BeginTable("statsTable", 4))
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Marker");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Min");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Max");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Avg");
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Size");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%d", state.minSize);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%d", state.maxSize);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.avgSize);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Edge Ratio");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.minEdgeRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.maxEdgeRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.avgEdgeRatio);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Volume Ratio");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.minVolumeRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.maxVolumeRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.avgVolumeRatio);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Surface Ratio");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.minSurfaceRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.maxSurfaceRatio);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.2f", state.avgSurfaceRatio);
+                    ImGui::EndTable();
+                }
+
+
                 ImGui::Text("Min Size: %d", state.minSize);
                 ImGui::Text("Max Size: %d", state.maxSize);
                 ImGui::Text("Avg Size: %.2f", state.avgSize);
-                ImGui::Text("Min Correctness: %.2f", state.minConvexity);
-                ImGui::Text("Max Correctness: %.2f", state.maxConvexity);
-                ImGui::Text("Avg Correctness: %.2f", state.avgConvexity);
-                ImGui::Text("Poly Vertices: %d", state.polyVertices);
             }
 
             ImGui::EndTabItem();
@@ -1746,11 +1806,15 @@ void drawSidebar()
         {
             for (int i = 0; i < state.polyMesh.cells.size(); i++)
             {
+                const auto& stat = state.stats[i];
                 ImGui::Text("Cell %d", i);
-                ImGui::Text("  Volume: %f", state.polyVolumes[i]);
-                ImGui::Text("  Area: %f", state.polyAreas[i]);
-                ImGui::Text("  Hull Volume: %f", state.hullVolumes[i]);
-                ImGui::Text("  Hull Area: %f", state.hullAreas[i]);
+                ImGui::Text("  Edge Ratio: %f", stat.edgeRatio);
+                ImGui::Text("  Surface Ratio: %f", stat.surfaceRatio);
+                if (stat.kernel)
+                {
+                    ImGui::Text("  Volume Ratio: %f (has kernel)", stat.volumeRatio);
+                }
+
             }
             ImGui::EndTabItem();
         }

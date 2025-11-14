@@ -22,7 +22,8 @@ bool isOutside(int fi, int vi, const PolyMesh &mesh)
     return normal.dot(toRef) > 0;
 }
 
-DirectedInfo getDirectedFaces(PolyMesh *mesh)
+
+DirectedInfo getDirectedFacesFromMesh(PolyMesh *mesh)
 {
     DirectedInfo info;
     info.cells.resize(mesh->cells.size());
@@ -90,7 +91,7 @@ void VisFWriter::writeMesh(PolyMesh mesh)
     }
 
     // cantidad de poligonos y poligonos
-    auto info = getDirectedFaces(&mesh);
+    auto info = getDirectedFacesFromMesh(&mesh);
     file << info.faces.size() << endl;
     for (const auto &vertices : info.faces)
     {

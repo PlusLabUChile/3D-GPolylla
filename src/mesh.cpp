@@ -179,7 +179,7 @@ float Face::area(const Mesh &mesh) const
 
 float Tetrahedron::volume(const Mesh &mesh) const
 {
-    return 1/6 * abs(signedSixthVolume(mesh.vertices[vertices[0]], mesh.vertices[vertices[1]], mesh.vertices[vertices[2]], mesh.vertices[vertices[3]]));
+    return signedSixthVolume(mesh.vertices[vertices[0]], mesh.vertices[vertices[1]], mesh.vertices[vertices[2]], mesh.vertices[vertices[3]]) / 6.0f;
 }
 
 float Tetrahedron::area(const Mesh &mesh) const
@@ -199,7 +199,8 @@ float Polyhedron::volume(const PolyMesh &mesh) const
     for (int ti: cells)
     {
         const Tetrahedron &t = mesh.tetras.at(ti);
-        volume += t.volume(mesh);
+        auto vol = t.volume(mesh);
+        volume += vol;
     }
     return volume;
 }
