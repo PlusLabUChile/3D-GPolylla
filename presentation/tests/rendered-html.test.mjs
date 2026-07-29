@@ -87,14 +87,15 @@ test("renders the complete autonomous presentation", async () => {
   assert.match(html, /aria-label="Progreso de lectura"/i);
   assert.match(html, /href="#north-star"/i);
   assert.match(html, /href="#success-risks-sources"/i);
-  assert.match(html, /github\.com\/PlusLabUChile\/3D-GPolylla/i);
+  assert.match(html, /href="\/gpolylla-redesign-design\.md"/i);
   assert.doesNotMatch(html, /codex-preview|loading skeleton|taking shape/i);
 });
 
 test("keeps fonts local and includes responsive accessibility rules", async () => {
-  const [layout, css] = await Promise.all([
+  const [layout, css, sourceDocument] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../public/gpolylla-redesign-design.md", import.meta.url), "utf8"),
   ]);
 
   assert.doesNotMatch(layout, /next\/font|fonts\.googleapis|codex-preview/i);
@@ -110,4 +111,6 @@ test("keeps fonts local and includes responsive accessibility rules", async () =
   assert.match(css, /\.visual--migration/);
   assert.match(css, /\.mobile-nav/);
   assert.match(css, /\.toc/);
+  assert.match(sourceDocument, /## 1\. North star/);
+  assert.match(sourceDocument, /## 22\. Fundamento bibliográfico/);
 });

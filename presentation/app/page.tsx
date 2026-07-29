@@ -2,8 +2,7 @@ import { sections } from "./presentation-data";
 import { ReadingNavigation } from "./reading-navigation";
 import { SectionVisual } from "./section-visual";
 
-const sourceDocument =
-  "https://github.com/PlusLabUChile/3D-GPolylla/blob/main/docs/superpowers/specs/2026-07-28-gpolylla-redesign-design.md";
+const sourceDocument = "/gpolylla-redesign-design.md";
 
 export default function Home() {
   const navigationItems = sections.map(({ id, index, label }) => ({ id, index, label }));
