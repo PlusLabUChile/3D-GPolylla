@@ -14,19 +14,28 @@ export default function Home() {
         Saltar al contenido
       </a>
       <ReadingNavigation items={navigationItems} />
-      <main id="content">
+      <main className="presentation" id="content">
         {sections.map((section) => (
           <section
             aria-labelledby={`${section.id}-title`}
+            className={`chapter${section.index === 1 ? " chapter--hero" : ""}`}
             data-presentation-section
             id={section.id}
             key={section.id}
           >
-            <p>Capítulo {String(section.index).padStart(2, "0")}</p>
-            <h2 id={`${section.id}-title`}>{section.title}</h2>
-            <p>{section.thesis}</p>
+            <header>
+              <p className="chapter__number">
+                Capítulo {String(section.index).padStart(2, "0")} · {section.label}
+              </p>
+              {section.index === 1 ? (
+                <h1 id={`${section.id}-title`}>{section.title}</h1>
+              ) : (
+                <h2 id={`${section.id}-title`}>{section.title}</h2>
+              )}
+              <p className="chapter__thesis">{section.thesis}</p>
+            </header>
             <SectionVisual kind={section.visual} />
-            <ul>
+            <ul className="chapter__points">
               {section.bullets.map((bullet) => (
                 <li key={bullet}>{bullet}</li>
               ))}
@@ -39,8 +48,20 @@ export default function Home() {
             ) : null}
           </section>
         ))}
-        <footer>
-          <a href={sourceDocument}>Leer el documento técnico completo</a>
+        <footer className="presentation-footer">
+          <h2>Documento técnico</h2>
+          <p>
+            La presentación resume las decisiones. El documento versionado conserva el
+            razonamiento, los riesgos y los criterios completos.
+          </p>
+          <a
+            className="source-link"
+            href={sourceDocument}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Leer el documento completo
+          </a>
         </footer>
       </main>
     </>

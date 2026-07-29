@@ -97,4 +97,13 @@ test("keeps fonts local and includes responsive accessibility rules", async () =
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /@media\s*\(max-width:\s*760px\)/);
   assert.match(css, /:focus-visible/);
+  assert.match(css, /--paper:\s*#f4f0e8/i);
+  assert.match(css, /--ink:\s*#102a2e/i);
+  assert.match(css, /--copper:\s*#a8502a/i);
+  assert.match(css, /--teal:\s*#176b68/i);
+  assert.match(css, /\.visual--pipeline/);
+  assert.match(css, /\.visual--memory/);
+  assert.match(css, /\.visual--migration/);
+  assert.match(css, /\.mobile-nav/);
+  assert.match(css, /\.toc/);
 });
