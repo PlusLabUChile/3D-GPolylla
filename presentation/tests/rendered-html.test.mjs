@@ -79,6 +79,11 @@ test("renders the complete autonomous presentation", async () => {
   assert.match(html, /CLI/);
   assert.match(html, /Experiments/);
   assert.match(html, /Demo/);
+  assert.match(html, /href="#content"[^>]*>\s*Saltar al contenido/i);
+  assert.match(html, /aria-label="Navegación de lectura"/i);
+  assert.match(html, /aria-label="Progreso de lectura"/i);
+  assert.match(html, /href="#north-star"/i);
+  assert.match(html, /href="#success-risks-sources"/i);
   assert.doesNotMatch(html, /codex-preview|loading skeleton|taking shape/i);
 });
 

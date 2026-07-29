@@ -1,24 +1,19 @@
 import { sections } from "./presentation-data";
+import { ReadingNavigation } from "./reading-navigation";
 import { SectionVisual } from "./section-visual";
 
 const sourceDocument =
   "https://github.com/PlusLabUChile/3D-GPolylla/blob/main/docs/superpowers/specs/2026-07-28-gpolylla-redesign-design.md";
 
 export default function Home() {
+  const navigationItems = sections.map(({ id, index, label }) => ({ id, index, label }));
+
   return (
     <>
       <a className="skip-link" href="#content">
         Saltar al contenido
       </a>
-      <nav aria-label="Índice de capítulos">
-        <ol>
-          {sections.map((section) => (
-            <li key={section.id}>
-              <a href={`#${section.id}`}>{section.label}</a>
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <ReadingNavigation items={navigationItems} />
       <main id="content">
         {sections.map((section) => (
           <section
