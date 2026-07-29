@@ -1,4 +1,5 @@
 import { sections } from "./presentation-data";
+import { SectionVisual } from "./section-visual";
 
 const sourceDocument =
   "https://github.com/PlusLabUChile/3D-GPolylla/blob/main/docs/superpowers/specs/2026-07-28-gpolylla-redesign-design.md";
@@ -29,6 +30,7 @@ export default function Home() {
             <p>Capítulo {String(section.index).padStart(2, "0")}</p>
             <h2 id={`${section.id}-title`}>{section.title}</h2>
             <p>{section.thesis}</p>
+            <SectionVisual kind={section.visual} />
             <ul>
               {section.bullets.map((bullet) => (
                 <li key={bullet}>{bullet}</li>

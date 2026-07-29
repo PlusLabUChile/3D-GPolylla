@@ -23,6 +23,29 @@ test("renders the complete autonomous presentation", async () => {
   assert.match(html, /<html[^>]+lang="es"/i);
   assert.match(html, /<title>Rediseño de 3D-GPolylla<\/title>/i);
   assert.equal((html.match(/data-presentation-section=/g) ?? []).length, 17);
+  assert.equal((html.match(/data-visual=/g) ?? []).length, 17);
+
+  for (const visual of [
+    "north-star",
+    "before-after",
+    "priorities",
+    "architecture",
+    "axes",
+    "memory",
+    "eigen",
+    "pipeline",
+    "extensibility",
+    "backends",
+    "adapters",
+    "executables",
+    "build",
+    "testing",
+    "style",
+    "migration",
+    "acceptance",
+  ]) {
+    assert.match(html, new RegExp(`data-visual="${visual}"`));
+  }
 
   for (const id of [
     "north-star",
