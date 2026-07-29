@@ -79,11 +79,15 @@ test("renders the complete autonomous presentation", async () => {
   assert.match(html, /CLI/);
   assert.match(html, /Experiments/);
   assert.match(html, /Demo/);
+  assert.match(html, /Result&lt;T, Error&gt;/);
+  assert.match(html, /Scalar canónico inicial es double/i);
+  assert.match(html, /Clean Architecture/);
   assert.match(html, /href="#content"[^>]*>\s*Saltar al contenido/i);
   assert.match(html, /aria-label="Navegación de lectura"/i);
   assert.match(html, /aria-label="Progreso de lectura"/i);
   assert.match(html, /href="#north-star"/i);
   assert.match(html, /href="#success-risks-sources"/i);
+  assert.match(html, /github\.com\/PlusLabUChile\/3D-GPolylla/i);
   assert.doesNotMatch(html, /codex-preview|loading skeleton|taking shape/i);
 });
 

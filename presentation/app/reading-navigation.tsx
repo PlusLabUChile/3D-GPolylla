@@ -54,7 +54,14 @@ export function ReadingNavigation({ items }: { items: readonly NavigationItem[] 
 
   return (
     <>
-      <div aria-label="Progreso de lectura" className="reading-progress" role="progressbar">
+      <div
+        aria-label="Progreso de lectura"
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={Math.round(progress)}
+        className="reading-progress"
+        role="progressbar"
+      >
         <span style={{ width: `${progress}%` }} />
       </div>
       <aside aria-label="Navegación de lectura" className="toc">

@@ -86,6 +86,7 @@ export const sections = [
       "No hay una jerarquía universal para estados que son distintos.",
       "No se expone un producto cartesiano de templates en la API.",
       "La selección runtime existe sólo en el borde de las aplicaciones.",
+      "Los fallos esperables viajan como Result<T, Error>, sin sumar dependencias a C++20.",
     ],
     visual: "architecture",
   },
@@ -116,6 +117,7 @@ export const sections = [
       "MeshBuilder concentra la construcción mutable.",
       "La malla validada es inmutable durante cada ejecución.",
       "Cada algoritmo crea un workspace privado y tailored.",
+      "El Scalar canónico inicial es double; cualquier conversión de backend es explícita.",
     ],
     visual: "memory",
   },
@@ -282,7 +284,7 @@ export const sections = [
       "Cada experimento se reconstruye desde dataset, configuración y seed.",
     ],
     detail:
-      "Los riesgos principales son sofisticación excesiva, explosión de combinaciones, conversiones de layout, divergencia de backends y una frontera GPU sólo teórica. El corte vertical y el spike CUDA los convierten en verificaciones concretas.",
+      "Los riesgos principales son sofisticación excesiva, explosión de combinaciones, conversiones de layout, divergencia de backends y una frontera GPU sólo teórica. El corte vertical y el spike CUDA los convierten en verificaciones concretas. El diseño se apoya en Clean Architecture, Clean Code, Fundamentals of Software Architecture, Building Evolutionary Architectures y patrones GoF.",
     visual: "acceptance",
   },
 ] as const satisfies readonly PresentationSection[];
