@@ -22,6 +22,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <random>
 #include <stdio.h>
@@ -296,12 +297,6 @@ struct Layout
 
     template <typename T> void push(int size);
 
-    template <> void push<float>(int size)
-    {
-        attributes.push_back({GL_FLOAT, size, stride});
-        stride += size * sizeof(float);
-    }
-
     void build()
     {
         bind();
@@ -322,6 +317,12 @@ struct Layout
         glDeleteVertexArrays(1, &vao);
     }
 };
+
+template <> void Layout::push<float>(int size)
+{
+    attributes.push_back({GL_FLOAT, size, stride});
+    stride += size * sizeof(float);
+}
 
 struct Buffer
 {
@@ -1179,15 +1180,15 @@ static struct State
     int maxSize;
     int minSize;
     float avgSize;
-    float maxEdgeRatio;
-    float minEdgeRatio;
-    float avgEdgeRatio;
-    float maxVolumeRatio;
-    float minVolumeRatio;
-    float avgVolumeRatio;
-    float maxSurfaceRatio;
-    float minSurfaceRatio;
-    float avgSurfaceRatio;
+    double maxEdgeRatio;
+    double minEdgeRatio;
+    double avgEdgeRatio;
+    double maxVolumeRatio;
+    double minVolumeRatio;
+    double avgVolumeRatio;
+    double maxSurfaceRatio;
+    double minSurfaceRatio;
+    double avgSurfaceRatio;
     float kernelRatio;
     int polyVertices;
 } state;
@@ -1321,14 +1322,14 @@ void computeStats()
     state.minSize = std::numeric_limits<int>::max();
     state.maxSize = std::numeric_limits<int>::min();
     state.avgSize = 0;
-    state.minEdgeRatio = std::numeric_limits<float>::max();
-    state.maxEdgeRatio = std::numeric_limits<float>::min();
+    state.minEdgeRatio = std::numeric_limits<double>::max();
+    state.maxEdgeRatio = std::numeric_limits<double>::min();
     state.avgEdgeRatio = 0;
-    state.minVolumeRatio = std::numeric_limits<float>::max();
-    state.maxVolumeRatio = std::numeric_limits<float>::min();
+    state.minVolumeRatio = std::numeric_limits<double>::max();
+    state.maxVolumeRatio = std::numeric_limits<double>::min();
     state.avgVolumeRatio = 0;
-    state.minSurfaceRatio = std::numeric_limits<float>::max();
-    state.maxSurfaceRatio = std::numeric_limits<float>::min();
+    state.minSurfaceRatio = std::numeric_limits<double>::max();
+    state.maxSurfaceRatio = std::numeric_limits<double>::min();
     state.avgSurfaceRatio = 0;
     int kernels = 0;
     state.kernelRatio = 0;
@@ -1674,7 +1675,7 @@ void drawSidebar()
                 ImGui::Spacing();
                 ImGui::Text("Statistics");
                 ImGui::Separator();
-                ImGui::Text("%d loners of %lld cells (%.2f %%)", state.loners, state.polyMesh.cells.size(), 100.0f * state.loners / state.polyMesh.cells.size());
+                ImGui::Text("%d loners of %zu cells (%.2f %%)", state.loners, state.polyMesh.cells.size(), 100.0f * state.loners / state.polyMesh.cells.size());
                 ImGui::Text("Vertices in polymesh: %d", state.polyVertices);
                 ImGui::Text("Kernel percentage: %.2f %%", state.kernelRatio * 100);
                 if (ImGui::BeginTable("statsTable", 4))

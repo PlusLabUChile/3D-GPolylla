@@ -169,7 +169,7 @@ bool Polyhedron::operator==(const Polyhedron &other) const
 
 // Areas and volumes
 
-float Face::area(const Mesh &mesh) const
+double Face::area(const Mesh &mesh) const
 {
     const Vertex &v0 = mesh.vertices[vertices[0]];
     const Vertex &v1 = mesh.vertices[vertices[1]];
@@ -177,15 +177,17 @@ float Face::area(const Mesh &mesh) const
     return 0.5f * normal(v0, v1, v2).norm();
 }
 
-float Tetrahedron::volume(const Mesh &mesh) const
+double Tetrahedron::volume(const Mesh &mesh) const
 {
-    return signedSixthVolume(mesh.vertices[vertices[0]], mesh.vertices[vertices[1]], mesh.vertices[vertices[2]], mesh.vertices[vertices[3]]) / 6.0f;
+    return signedSixthVolume(mesh.vertices[vertices[0]], mesh.vertices[vertices[1]], mesh.vertices[vertices[2]],
+                             mesh.vertices[vertices[3]]) /
+           6.0f;
 }
 
-float Tetrahedron::area(const Mesh &mesh) const
+double Tetrahedron::area(const Mesh &mesh) const
 {
-    float totalArea = 0.0f;
-    for (int fi: faces)
+    double totalArea = 0.0f;
+    for (int fi : faces)
     {
         const Face &f = mesh.faces.at(fi);
         totalArea += f.area(mesh);
@@ -193,27 +195,25 @@ float Tetrahedron::area(const Mesh &mesh) const
     return totalArea;
 }
 
-float Polyhedron::volume(const PolyMesh &mesh) const
+double Polyhedron::volume(const PolyMesh &mesh) const
 {
-    float volume = 0.0f;
-    for (int ti: cells)
+    double volume = 0.0f;
+    for (int ti : cells)
     {
         const Tetrahedron &t = mesh.tetras.at(ti);
         auto vol = t.volume(mesh);
-        volume += vol;
+        volume += std::abs(vol);
     }
     return volume;
 }
 
-float Polyhedron::area(const PolyMesh &mesh) const
+double Polyhedron::area(const PolyMesh &mesh) const
 {
-    float totalArea = 0.0f;
-    for (int fi: faces)
+    double totalArea = 0.0f;
+    for (int fi : faces)
     {
         const Face &f = mesh.faces.at(fi);
         totalArea += f.area(mesh);
     }
     return totalArea;
 }
-
-

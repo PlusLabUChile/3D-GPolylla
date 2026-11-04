@@ -1,7 +1,6 @@
 //
 // Created by vigb9 on 06/10/2025.
 //
-#include "../cmake-build-debug/_deps/imgui-src/imgui.h"
 #include "utils.h"
 #include <gpolylla/stat.h>
 
@@ -9,16 +8,17 @@
 
 #include <polyhedron_kernel.h>
 
-
 #include <numeric>
 
 using namespace Polylla;
 
-float generalVolume(const std::vector<Vertex> &vertices, const std::vector<Face> &faces)
+double generalVolume(const std::vector<Vertex> &vertices, const std::vector<Face> &faces)
 {
+    if (vertices.empty())
+        return 0;
     Vertex ref = vertices[0];
-    float signedVolume = 0.f;
-    for (auto f: faces)
+    double signedVolume = 0.f;
+    for (auto f : faces)
     {
         const auto &v0 = vertices[f.vertices[0]];
         const auto &v1 = vertices[f.vertices[1]];
@@ -28,10 +28,10 @@ float generalVolume(const std::vector<Vertex> &vertices, const std::vector<Face>
     return abs(signedVolume) / 6.0f;
 }
 
-float generalArea(const std::vector<Vertex> &vertices, const std::vector<Face> &faces)
+double generalArea(const std::vector<Vertex> &vertices, const std::vector<Face> &faces)
 {
-    float totalArea = 0.f;
-    for (auto f: faces)
+    double totalArea = 0.f;
+    for (auto f : faces)
     {
         const auto &v0 = vertices[f.vertices[0]];
         const auto &v1 = vertices[f.vertices[1]];
@@ -41,21 +41,20 @@ float generalArea(const std::vector<Vertex> &vertices, const std::vector<Face> &
     return .5f * totalArea;
 }
 
-
 Hull::Hull(const Polyhedron &poly, const PolyMesh &mesh)
 {
-    quickhull::QuickHull<float> qh;
-    std::vector<quickhull::Vector3<float>> qhVertices;
+    quickhull::QuickHull<double> qh;
+    std::vector<quickhull::Vector3<double>> qhVertices;
     vertices.reserve(poly.vertices.size());
     qhVertices.reserve(poly.vertices.size());
     for (int vi : poly.vertices)
     {
-        const auto& vert = mesh.vertices[vi];
+        const auto &vert = mesh.vertices[vi];
         vertices.push_back(vert);
         qhVertices.emplace_back(vert.x(), vert.y(), vert.z());
     }
     auto hull = qh.getConvexHull(qhVertices, true, true);
-    const auto& indices = hull.getIndexBuffer();
+    const auto &indices = hull.getIndexBuffer();
     int facesAmount = indices.size() / 3;
     faces.reserve(facesAmount);
     for (int fi = 0; fi < facesAmount; fi++)
@@ -64,17 +63,17 @@ Hull::Hull(const Polyhedron &poly, const PolyMesh &mesh)
     }
 }
 
-float Hull::volume() const
+double Hull::volume() const
 {
     return generalVolume(vertices, faces);
 }
 
-float Hull::area() const
+double Hull::area() const
 {
     return generalArea(vertices, faces);
 }
 
- Kernel::Kernel(const Polyhedron &poly, const PolyMesh &mesh)
+Kernel::Kernel(const Polyhedron &poly, const PolyMesh &mesh)
 {
     PolyhedronKernel k;
     std::vector<cinolib::vec3d> kVertices;
@@ -84,7 +83,7 @@ float Hull::area() const
     for (int vi : poly.vertices)
     {
         vertLookup[vi] = kVertices.size();
-        const auto& vert = mesh.vertices[vi];
+        const auto &vert = mesh.vertices[vi];
         kVertices.emplace_back(vert.x(), vert.y(), vert.z());
     }
 
@@ -106,23 +105,22 @@ float Hull::area() const
     k.compute(m.vector_verts(), m.vector_polys(), m.vector_poly_normals());
 
     vertices.reserve(k.kernel_verts.size());
-    for (const auto& v : k.kernel_verts)
+    for (const auto &v : k.kernel_verts)
     {
         vertices.emplace_back(v.x(), v.y(), v.z());
     }
 
     // faces.(k.kernel_faces.size());
-    for (const auto& f : k.kernel_faces)
+    for (const auto &f : k.kernel_faces)
     {
         if (f.size() > 3)
         {
-            // std::cerr << "Error while computing kernel, face larger than a triangle found (" << f.size() << ")" << std::endl;
-            // continue;
-            // make a triangle fan from the face
+            // std::cerr << "Error while computing kernel, face larger than a triangle found (" << f.size() << ")" <<
+            // std::endl; continue; make a triangle fan from the face
             uint root = f.at(0);
-            for (uint i = 1; i <f.size() -1 ; ++i)
+            for (uint i = 1; i < f.size() - 1; ++i)
             {
-                faces.emplace_back(root, f.at(i), f.at(i+1));
+                faces.emplace_back(root, f.at(i), f.at(i + 1));
             }
             continue;
         }
@@ -131,23 +129,20 @@ float Hull::area() const
     }
 }
 
-
-float Kernel::volume() const
+double Kernel::volume() const
 {
     return generalVolume(vertices, faces);
 }
 
-float Kernel::area() const
+double Kernel::area() const
 {
     return generalArea(vertices, faces);
 }
-
 
 bool Kernel::empty() const
 {
     return vertices.empty();
 }
-
 
 //  MeshStat::MeshStat(const PolyMesh &mesh)
 // {
@@ -166,7 +161,7 @@ std::vector<PolyStat> Polylla::computeStats(const PolyMesh &mesh)
 {
     std::vector<PolyStat> stats;
     stats.reserve(mesh.cells.size());
-    for (const auto& poly : mesh.cells)
+    for (const auto &poly : mesh.cells)
     {
         PolyStat stat;
         stat.hull = Hull(poly, mesh);
@@ -178,17 +173,17 @@ std::vector<PolyStat> Polylla::computeStats(const PolyMesh &mesh)
             stat.kernel = std::nullopt;
         }
 
-        float minSize = std::numeric_limits<float>::max();
-        float maxSize = std::numeric_limits<float>::min();
+        double minSize = std::numeric_limits<double>::max();
+        double maxSize = std::numeric_limits<double>::min();
 
-        for (const auto& fi : poly.faces)
+        for (const auto &fi : poly.faces)
         {
             const Face &f = mesh.faces[fi];
             for (int i = 0; i < 3; ++i)
             {
                 const auto &v0 = mesh.vertices[f.vertices[i]];
                 const auto &v1 = mesh.vertices[f.vertices[(i + 1) % 3]];
-                float edgeSize = (v1 - v0).norm();
+                double edgeSize = (v1 - v0).norm();
                 minSize = std::min(minSize, edgeSize);
                 maxSize = std::max(maxSize, edgeSize);
             }
@@ -204,4 +199,3 @@ std::vector<PolyStat> Polylla::computeStats(const PolyMesh &mesh)
 
     return stats;
 }
-

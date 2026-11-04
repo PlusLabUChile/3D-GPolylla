@@ -47,12 +47,12 @@ template <typename T> bool sameContent(const T *a, const T *b, size_t size)
     }
     return same;
 }
-inline Eigen::Vector3f normal(const Vertex &v0, const Vertex &v1, const Vertex &v2)
+inline Eigen::Vector3d normal(const Vertex &v0, const Vertex &v1, const Vertex &v2)
 {
     return (v1 - v0).cross(v2 - v0);
 }
 
-inline float signedSixthVolume(const Vertex &v0, const Vertex &v1, const Vertex &v2, const Vertex &v3)
+inline double signedSixthVolume(const Vertex &v0, const Vertex &v1, const Vertex &v2, const Vertex &v3)
 {
     return (v1 - v0).cross(v2 - v0).dot(v3 - v0);
 }
@@ -73,7 +73,7 @@ inline int opposite(const Face &f, const Tetrahedron &tetra)
     return -1;
 }
 
-inline std::vector<std::array<int, 3>> getDirectedFaces(const Polyhedron& p, const PolyMesh& mesh)
+inline std::vector<std::array<int, 3>> getDirectedFaces(const Polyhedron &p, const PolyMesh &mesh)
 {
     std::vector<std::array<int, 3>> faces;
     for (const int ti : p.cells)
@@ -132,7 +132,7 @@ inline std::vector<std::array<int, 3>> getDirectedFaces(const Polyhedron& p, con
 // inline float minEdgeSize(const Face& f, const Mesh& m)
 // {
 //
-}
+} // namespace Polylla
 
 // Hull polyhedronHull(const Polyhedron &polyhedron, const PolyMesh &mesh);
 // } // namespace Polylla

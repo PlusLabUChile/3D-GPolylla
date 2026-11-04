@@ -15,6 +15,7 @@ enable_testing()
 
 set(GPOL_TEST_SRCS
         mesh_test.cpp
+        partition_test.cpp
         tetgen_test.cpp
         cavity_test.cpp
         visf_writer_test.cpp

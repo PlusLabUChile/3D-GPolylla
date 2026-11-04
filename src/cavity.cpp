@@ -1,47 +1,41 @@
 #include "QuickHull.hpp"
 #include "utils.h"
 #include <algorithm>
+#include <random>
 #include <set>
+#include <stdexcept>
 
 using namespace Polylla;
 using namespace std;
 
 CavityAlgorithm::Cavity circumsphere(int ti, const Mesh &mesh)
 {
-    using namespace Eigen;
-    Matrix4d A, X, Y, Z;
-    const Tetrahedron &tetra = mesh.tetras[ti];
-    const Vertex &p0 = mesh.vertices[tetra.vertices[0]];
-    const Vertex &p1 = mesh.vertices[tetra.vertices[1]];
-    const Vertex &p2 = mesh.vertices[tetra.vertices[2]];
-    const Vertex &p3 = mesh.vertices[tetra.vertices[3]];
-
-    A << p0.x(), p0.y(), p0.z(), 1, p1.x(), p1.y(), p1.z(), 1, p2.x(), p2.y(), p2.z(), 1, p3.x(), p3.y(), p3.z(), 1;
-
-    X << p0.squaredNorm(), p0.y(), p0.z(), 1, p1.squaredNorm(), p1.y(), p1.z(), 1, p2.squaredNorm(), p2.y(), p2.z(),
-        1, p3.squaredNorm(), p3.y(), p3.z(), 1;
-
-    Y << p0.squaredNorm(), p0.x(), p0.z(), 1, p1.squaredNorm(), p1.x(), p1.z(), 1, p2.squaredNorm(), p2.x(), p2.z(),
-        1, p3.squaredNorm(), p3.x(), p3.z(), 1;
-
-    Z << p0.squaredNorm(), p0.x(), p0.y(), 1, p1.squaredNorm(), p1.x(), p1.y(), 1, p2.squaredNorm(), p2.x(), p2.y(),
-        1, p3.squaredNorm(), p3.x(), p3.y(), 1;
-
-    double a = A.determinant();
-    double Dx = X.determinant();
-    double Dy = -Y.determinant();
-    double Dz = Z.determinant();
-
+    const auto &t = mesh.tetras.at(ti);
+    const Vertex &p = mesh.vertices.at(t.vertices[0]);
+    Eigen::Matrix3d a;
+    Eigen::Vector3d rhs;
+    for (int i = 0; i < 3; ++i)
+    {
+        Eigen::Vector3d d = mesh.vertices.at(t.vertices[i + 1]) - p;
+        a.row(i) = 2.0 * d.transpose();
+        rhs[i] = d.squaredNorm();
+    }
+    Eigen::FullPivLU<Eigen::Matrix3d> solver(a);
+    if (!solver.isInvertible())
+        throw std::runtime_error("Degenerate tetrahedron: " + std::to_string(ti));
+    Eigen::Vector3d offset = solver.solve(rhs);
     CavityAlgorithm::Cavity sphere;
-    sphere.center = Vertex(Dx / (2 * a), Dy / (2 * a), Dz / (2 * a));
-    sphere.radius = (sphere.center - p0).norm();
+    sphere.center = p + offset;
+    sphere.radius = offset.norm();
     sphere.tetra = ti;
+    if (!sphere.center.allFinite() || !std::isfinite(sphere.radius))
+        throw std::runtime_error("Non-finite circumsphere: " + std::to_string(ti));
     return sphere;
 }
 
 bool CavityAlgorithm::Cavity::isInside(const Vertex &point) const
 {
-    return (center - point).norm() < radius + TOLERANCE;
+    return (center - point).norm() <= radius * (1.0 + 1e-10);
 }
 
 struct CavityInfo
@@ -62,39 +56,45 @@ struct DepthFirstSearch
 
     void operator()(const int currentTi, const int seed, set<int> *points, vector<int> *faces, vector<int> *tetras)
     {
-        info->owners[currentTi] = seed;
-        tetras->push_back(currentTi);
-
-        const Tetrahedron &currentTetra = mesh->tetras[currentTi];
-
-        for (int vi : currentTetra.vertices)
+        // An explicit DFS stack avoids stack overflow on large connected cavities.
+        struct Frame
         {
-            points->insert(vi);
-        }
-
-        for (const int fi : currentTetra.faces)
+            int tetra;
+            int face;
+        };
+        std::vector<Frame> stack;
+        auto enter = [&](int ti) {
+            info->owners[ti] = seed;
+            tetras->push_back(ti);
+            for (int vi : mesh->tetras[ti].vertices)
+                points->insert(vi);
+            stack.push_back({ti, 0});
+        };
+        enter(currentTi);
+        while (!stack.empty())
         {
-            int nextTi = mesh->faces[fi].tetras[0];
-            if (nextTi == currentTi)
-                nextTi = mesh->faces[fi].tetras[1];
-
-            if (nextTi == -1)
+            auto &frame = stack.back();
+            if (frame.face == 4)
+            {
+                stack.pop_back();
+                continue;
+            }
+            int fi = mesh->tetras[frame.tetra].faces[frame.face++];
+            const auto &face = mesh->faces[fi];
+            int next = face.tetras[0] == frame.tetra ? face.tetras[1] : face.tetras[0];
+            if (next == -1)
             {
                 faces->push_back(fi);
                 continue;
             }
-
-            if (info->owners[nextTi] != -1)
+            if (info->owners[next] != -1)
             {
-                // Ya fue asignado a un poly
-                if (info->owners[nextTi] != seed)
+                if (info->owners[next] != seed)
                     faces->push_back(fi);
                 continue;
             }
-
-            const auto &cavity = info->cavities[seed];
-            if (cavity.isInside(info->cavities[nextTi].center))
-                (*this)(nextTi, seed, points, faces, tetras);
+            if (info->cavities[seed].isInside(info->cavities[next].center))
+                enter(next);
             else
                 faces->push_back(fi);
         }
@@ -110,8 +110,10 @@ void labelCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
         info->seeds.push_back(ti);
     }
 
-    std::sort(info->seeds.begin(), info->seeds.end(),
-              [&](int i, int j) { return info->cavities[i].radius < info->cavities[j].radius; });
+    std::sort(info->seeds.begin(), info->seeds.end(), [&](int i, int j) {
+        double a = info->cavities[i].radius, b = info->cavities[j].radius;
+        return a == b ? i < j : a < b;
+    });
 
     info->owners = vector<int>(mesh.tetras.size(), -1);
 }
@@ -144,31 +146,34 @@ void buildCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
     }
 };
 
-void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
+void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info)
+{
     // Add the loners to the best neighbour
-    for (const auto& p: result->cells)
+    for (const auto &p : result->cells)
     {
-        if (p.cells.size() > 1) continue;
+        if (p.cells.size() > 1)
+            continue;
 
         int ti = p.cells.at(0);
-        const auto& t = result->tetras.at(ti);
-        const auto& cavity = info->cavities.at(ti);
+        const auto &t = result->tetras.at(ti);
+        const auto &cavity = info->cavities.at(ti);
 
         int best = -1;
         float bestValue = numeric_limits<float>::max();
 
         for (int fi : t.faces)
         {
-            const auto& f = result->faces.at(fi);
+            const auto &f = result->faces.at(fi);
             int nextTi = f.tetras[0];
             if (nextTi == ti)
                 nextTi = f.tetras[1];
 
-            if (nextTi == -1) continue;
+            if (nextTi == -1)
+                continue;
 
             // const auto& next = result->cells.at(nextTi);
 
-            const auto& nextCavity = info->cavities.at(nextTi);
+            const auto &nextCavity = info->cavities.at(nextTi);
 
             float distance = (nextCavity.center - cavity.center).norm();
             float value = distance / nextCavity.radius;
@@ -189,7 +194,7 @@ void fixCavities(const Mesh &mesh, PolyMesh *result, CavityInfo *info) {
     }
 
     vector<Polyhedron> newPolys;
-    for (auto& t: result->tetras)
+    for (auto &t : result->tetras)
     {
         int idx = newPolys.size();
         newPolys.push_back(result->cells.at(t.polyhedron));
@@ -237,6 +242,19 @@ PolyMesh CavityAlgorithm::operator()(const Mesh &mesh)
     PolyMesh result;
     CavityInfo info;
     labelCavities(mesh, &result, &info);
+    if (seedOrder == SeedOrder::Descending)
+        std::sort(info.seeds.begin(), info.seeds.end(), [&](int i, int j) {
+            double a = info.cavities[i].radius, b = info.cavities[j].radius;
+            return a == b ? i < j : a > b;
+        });
+    else if (seedOrder == SeedOrder::Index)
+        std::iota(info.seeds.begin(), info.seeds.end(), 0);
+    else if (seedOrder == SeedOrder::Random)
+    {
+        std::iota(info.seeds.begin(), info.seeds.end(), 0);
+        std::mt19937 rng(randomSeed);
+        std::shuffle(info.seeds.begin(), info.seeds.end(), rng);
+    }
     buildCavities(mesh, &result, &info);
     // fixCavities(mesh, &result, &info);
     // if (withInfo)
@@ -244,6 +262,20 @@ PolyMesh CavityAlgorithm::operator()(const Mesh &mesh)
     //     this->info = getInfo(info, result);
     // }
     // owners = info.owners;
+    // Reconstruct boundary after all owners are known: a rejected neighbour may
+    // subsequently enter the same cavity through another face.
+    for (auto &cell : result.cells)
+    {
+        cell.faces.clear();
+        for (int ti : cell.cells)
+            for (int fi : mesh.tetras[ti].faces)
+            {
+                const auto &face = mesh.faces[fi];
+                int next = face.tetras[0] == ti ? face.tetras[1] : face.tetras[0];
+                if (next < 0 || result.tetras[next].polyhedron != result.tetras[ti].polyhedron)
+                    cell.faces.push_back(fi);
+            }
+    }
     cavities_ = info.cavities;
     seeds_ = info.seeds;
     owners_ = info.owners;

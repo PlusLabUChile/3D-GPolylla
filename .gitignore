@@ -186,3 +186,5 @@ CMakeUserPresets.json
 # Output of demos and tests
 data/out/
 logs/
+
+__pycache__/

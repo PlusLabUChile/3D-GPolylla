@@ -23,5 +23,6 @@ endif()
 
 option(GPOLYLLA_TEST "Build tests" OFF)
 if (GPOLYLLA_TEST)
+    enable_testing()
     add_subdirectory(test)
 endif ()

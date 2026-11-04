@@ -15,7 +15,7 @@ TEST_F(TetgenReaderTest, BasicReadMesh)
     Mesh mesh = reader.readMesh();
 
     ASSERT_EQ(mesh.vertices.size(), BASIC_MESH.vertices.size());
-    ASSERT_EQ(mesh.cells.size(), BASIC_MESH.cells.size());
+    ASSERT_EQ(mesh.tetras.size(), BASIC_MESH.tetras.size());
     ASSERT_EQ(mesh.faces.size(), BASIC_MESH.faces.size());
 
     /*
@@ -45,12 +45,12 @@ TEST_F(TetgenReaderTest, BasicReadMesh)
     3 5 7 0 4
     4 5 2 0 7
     */
-    // checkIn(mesh.cells, BASIC_MESH.cells[0]);
-    // checkIn(mesh.cells, BASIC_MESH.cells[1]);
-    // checkIn(mesh.cells, BASIC_MESH.cells[2]);
-    // checkIn(mesh.cells, BASIC_MESH.cells[3]);
-    // checkIn(mesh.cells, BASIC_MESH.cells[4]);
-    checkSimilar(mesh.cells, BASIC_MESH.cells, "Cells");
+    // checkIn(mesh.tetras, BASIC_MESH.tetras[0]);
+    // checkIn(mesh.tetras, BASIC_MESH.tetras[1]);
+    // checkIn(mesh.tetras, BASIC_MESH.tetras[2]);
+    // checkIn(mesh.tetras, BASIC_MESH.tetras[3]);
+    // checkIn(mesh.tetras, BASIC_MESH.tetras[4]);
+    checkSimilar(mesh.tetras, BASIC_MESH.tetras, "Cells");
 
     /*
       0 0 1 2

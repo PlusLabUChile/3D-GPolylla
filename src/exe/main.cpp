@@ -11,7 +11,6 @@
 
 using namespace Polylla;
 
-
 struct Times
 {
     float execution;
@@ -19,12 +18,12 @@ struct Times
     float write;
 };
 
-
-void createStats(const std::string& file, const std::vector<PolyStat>& stats, const Times& times, const PolyMesh& polyMesh, const Mesh& mesh)
+void createStats(const std::string &file, const std::vector<PolyStat> &stats, const Times &times,
+                 const PolyMesh &polyMesh, const Mesh &mesh)
 {
 
     std::vector<bool> points(mesh.vertices.size());
-    for (const auto& poly : polyMesh.cells)
+    for (const auto &poly : polyMesh.cells)
     {
         for (const int vi : poly.vertices)
         {
@@ -51,7 +50,7 @@ void createStats(const std::string& file, const std::vector<PolyStat>& stats, co
     int idxMaxEdgeRatio = -1;
 
     int i = 0;
-    for (const auto& stat : stats)
+    for (const auto &stat : stats)
     {
         avgVolumeRatio += stat.volumeRatio;
         if (stat.volumeRatio < minVolumeRatio)
@@ -96,7 +95,6 @@ void createStats(const std::string& file, const std::vector<PolyStat>& stats, co
     avgSurfaceRatio /= stats.size();
     avgEdgeRatio /= stats.size();
 
-
     std::ofstream csv(file);
 
     if (!csv.is_open())
@@ -118,16 +116,16 @@ void createStats(const std::string& file, const std::vector<PolyStat>& stats, co
     csv << times.execution << "," << times.read << "," << times.write << "," << totalTime << ",";
     csv << minVolumeRatio << "," << maxVolumeRatio << "," << avgVolumeRatio << ",";
     csv << idxMinVolumeRatio << "," << idxMaxVolumeRatio << ",";
-    csv << minSurfaceRatio << "," << maxSurfaceRatio << "," << avgSurfaceRatio;
+    csv << minSurfaceRatio << "," << maxSurfaceRatio << "," << avgSurfaceRatio << ",";
     csv << idxMinSurfaceRatio << "," << idxMaxSurfaceRatio << ",";
-    csv << minSurfaceRatio << "," << maxSurfaceRatio << "," << avgEdgeRatio;
+    csv << minEdgeRatio << "," << maxEdgeRatio << "," << avgEdgeRatio << ",";
     csv << idxMinEdgeRatio << "," << idxMaxEdgeRatio;
     csv << std::endl;
 
     csv.close();
 }
 
-void createOFF(const std::string& file, const Polyhedron& poly, const PolyMesh& mesh)
+void createOFF(const std::string &file, const Polyhedron &poly, const PolyMesh &mesh)
 {
     std::ofstream off(file);
     if (!off.is_open())
@@ -148,9 +146,9 @@ void createOFF(const std::string& file, const Polyhedron& poly, const PolyMesh& 
 
     for (int fi : poly.faces)
     {
-        const auto& face = mesh.faces.at(fi);
+        const auto &face = mesh.faces.at(fi);
         off << face.vertices.size();
-        for (int vi: face.vertices)
+        for (int vi : face.vertices)
         {
             off << " " << vertexMap[vi];
         }
@@ -160,14 +158,14 @@ void createOFF(const std::string& file, const Polyhedron& poly, const PolyMesh& 
     off.close();
 }
 
-void generatePolyhedrons(const std::string& folder, const std::vector<PolyStat>& stats, const PolyMesh& polyMesh)
+void generatePolyhedrons(const std::string &folder, const std::vector<PolyStat> &stats, const PolyMesh &polyMesh)
 {
     try
     {
         std::filesystem::create_directories(folder);
 
         int i = 0;
-        for (const auto& cell: polyMesh.cells)
+        for (const auto &cell : polyMesh.cells)
         {
             createOFF(folder + "/cell_" + std::to_string(i) + ".off", cell, polyMesh);
             i++;
@@ -186,22 +184,22 @@ void generatePolyhedrons(const std::string& folder, const std::vector<PolyStat>&
         csv << "kernel volume,kernel surface";
         csv << "\n";
 
-
         i = 0;
-        for (const auto& stat : stats)
+        for (const auto &stat : stats)
         {
-            const auto& poly = polyMesh.cells.at(i);
+            const auto &poly = polyMesh.cells.at(i);
             csv << i << ",";
-            csv << stat.edgeRatio << "," << stat.volumeRatio << "," << stat.surfaceRatio << "," << stat.kernel.has_value() << ",";
+            csv << stat.edgeRatio << "," << stat.volumeRatio << "," << stat.surfaceRatio << ","
+                << stat.kernel.has_value() << ",";
             csv << poly.volume(polyMesh) << "," << poly.area(polyMesh) << ",";
             csv << stat.hull.volume() << "," << stat.hull.area() << ",";
             if (stat.kernel.has_value())
             {
-                csv << stat.kernel->volume() << "," << stat.kernel->area() << "," ;
+                csv << stat.kernel->volume() << "," << stat.kernel->area();
             }
             else
             {
-                csv << 0 << "," << 0 << "," ;
+                csv << 0 << "," << 0;
             }
             csv << "\n";
             i++;
@@ -209,11 +207,10 @@ void generatePolyhedrons(const std::string& folder, const std::vector<PolyStat>&
 
         csv.close();
     }
-    catch (const std::filesystem::filesystem_error& e)
+    catch (const std::filesystem::filesystem_error &e)
     {
         throw std::runtime_error("Unable to create directory: " + folder + " (" + e.what() + ")");
     }
-
 }
 
 void displayHelp()
@@ -302,7 +299,6 @@ int main(int argc, char *argv[])
 
     Times times;
 
-
     TetgenReader reader;
     reader.nodeFile = nodeFile;
     reader.eleFile = eleFile;
@@ -311,13 +307,10 @@ int main(int argc, char *argv[])
     auto t1 = std::chrono::high_resolution_clock::now();
     times.read = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
-
-
     t0 = std::chrono::high_resolution_clock::now();
     PolyMesh polyMesh = CavityAlgorithm()(mesh);
     t1 = std::chrono::high_resolution_clock::now();
     times.execution = std::chrono::duration<float, std::milli>(t1 - t0).count();
-
 
     VisFWriter writer;
     writer.outputFile = outputFile;
@@ -338,7 +331,6 @@ int main(int argc, char *argv[])
             std::string folder = basename + "_detail";
             generatePolyhedrons(folder, stats, polyMesh);
         }
-
     }
 
     // auto stats = computeStats(polyMesh);
@@ -403,7 +395,6 @@ int main(int argc, char *argv[])
     //
     // k.initialize(kMesh.vector_verts());
     // k.compute(kMesh.vector_verts(), kMesh.vector_polys(), kMesh.vector_poly_normals());
-
 
     std::cout << "Done in " << times.execution << " ms" << std::endl;
     std::cout << "Created file: " << writer.outputFile << std::endl;

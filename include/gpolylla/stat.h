@@ -5,8 +5,8 @@
 #ifndef GPOLYLLA_STATS_H
 #define GPOLYLLA_STATS_H
 #include "polylla.h"
-#include <vector>
 #include <optional>
+#include <vector>
 
 namespace Polylla
 {
@@ -19,8 +19,8 @@ class Hull
   public:
     Hull() = default;
     Hull(const Polyhedron &poly, const PolyMesh &mesh);
-    float area() const;
-    float volume() const;
+    double area() const;
+    double volume() const;
 };
 
 class Kernel
@@ -31,16 +31,16 @@ class Kernel
   public:
     Kernel() = default;
     Kernel(const Polyhedron &poly, const PolyMesh &mesh);
-    float area() const;
-    float volume() const;
+    double area() const;
+    double volume() const;
     bool empty() const;
 };
 
 struct PolyStat
 {
-    float edgeRatio;
-    float volumeRatio;
-    float surfaceRatio;
+    double edgeRatio;
+    double volumeRatio;
+    double surfaceRatio;
     std::optional<Kernel> kernel;
     Hull hull;
 };

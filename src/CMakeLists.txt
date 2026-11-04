@@ -1,6 +1,7 @@
 message("-- [GPolylla] Building")
 set(GPOL_SRCS
         mesh.cpp
+        partition.cpp
         reader.cpp
         neighbours.cpp
         writer.cpp
@@ -34,7 +35,7 @@ FetchContent_MakeAvailable(Eigen3)
 FetchContent_Declare(
         qhull
         GIT_REPOSITORY https://github.com/akuukka/quickhull.git
-        GIT_TAG master
+        GIT_TAG 4ef66c68950cb4db11d3b75bfe4034d807485ad0
 )
 FetchContent_GetProperties(qhull)
 if (NOT qhull_POPULATED)
@@ -46,7 +47,7 @@ endif()
 FetchContent_Declare(
         poly_kernel
         GIT_REPOSITORY https://github.com/TommasoSorgente/polyhedron_kernel.git
-        GIT_TAG main
+        GIT_TAG 33a1ce1780cb58a9ddec9eac4325ef0c6f6a896c
 )
 FetchContent_GetProperties(poly_kernel)
 if (NOT poly_kernel_POPULATED)

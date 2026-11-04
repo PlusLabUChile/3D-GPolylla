@@ -12,9 +12,9 @@ namespace Polylla
 class PolyMesh;
 class Mesh;
 
-struct Vertex : Eigen::Vector3f
+struct Vertex : Eigen::Vector3d
 {
-    using Eigen::Vector3f::Vector3f;
+    using Eigen::Vector3d::Vector3d;
 };
 
 struct Face
@@ -29,7 +29,7 @@ struct Face
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Face &other) const;
-    float area(const Mesh &mesh) const;
+    double area(const Mesh &mesh) const;
 };
 
 struct Tetrahedron
@@ -45,8 +45,8 @@ struct Tetrahedron
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Tetrahedron &other) const;
-    float volume(const Mesh &mesh) const;
-    float area(const Mesh &mesh) const;
+    double volume(const Mesh &mesh) const;
+    double area(const Mesh &mesh) const;
 };
 
 struct Polyhedron
@@ -61,8 +61,8 @@ struct Polyhedron
     std::size_t hash() const;
     // Equality operator
     bool operator==(const Polyhedron &other) const;
-    float area(const PolyMesh &mesh) const;
-    float volume(const PolyMesh &mesh) const;
+    double area(const PolyMesh &mesh) const;
+    double volume(const PolyMesh &mesh) const;
 };
 
 class Mesh
@@ -118,6 +118,15 @@ class Algorithm
 class CavityAlgorithm : public Algorithm
 {
   public:
+    enum class SeedOrder
+    {
+        Ascending,
+        Descending,
+        Index,
+        Random
+    };
+    SeedOrder seedOrder = SeedOrder::Ascending;
+    unsigned randomSeed = 1;
     PolyMesh operator()(const Mesh &mesh) override;
 
     struct Cavity

@@ -62,31 +62,28 @@ TEST_F(VisFWriterTest, WriteBasicPolyMesh)
     expectedOutput << "1 1 1" << std::endl; // Vertex 6
     expectedOutput << "1 1 0" << std::endl; // Vertex 7
 
-    // Number of faces (16) and face definitions
-    expectedOutput << "16" << std::endl;
-    expectedOutput << "3 0 1 2" << std::endl; // Face 0: 3 vertices
-    expectedOutput << "3 0 1 5" << std::endl; // Face 1: 3 vertices
-    expectedOutput << "3 2 3 0" << std::endl; // Face 2: 3 vertices
-    expectedOutput << "3 0 5 2" << std::endl; // Face 3: 3 vertices
-    expectedOutput << "3 0 7 2" << std::endl; // Face 4: 3 vertices
-    expectedOutput << "3 7 3 0" << std::endl; // Face 5: 3 vertices
-    expectedOutput << "3 5 4 0" << std::endl; // Face 6: 3 vertices
-    expectedOutput << "3 0 4 7" << std::endl; // Face 7: 3 vertices
-    expectedOutput << "3 0 5 7" << std::endl; // Face 8: 3 vertices
-    expectedOutput << "3 2 1 5" << std::endl; // Face 9: 3 vertices
-    expectedOutput << "3 2 3 7" << std::endl; // Face 10: 3 vertices
-    expectedOutput << "3 5 6 2" << std::endl; // Face 11: 3 vertices
-    expectedOutput << "3 5 2 7" << std::endl; // Face 12: 3 vertices
-    expectedOutput << "3 7 6 2" << std::endl; // Face 13: 3 vertices
-    expectedOutput << "3 7 4 5" << std::endl; // Face 14: 3 vertices
-    expectedOutput << "3 5 6 7" << std::endl; // Face 15: 3 vertices
+    // The merged cube has 12 boundary triangles; its 4 internal faces are omitted.
+    // Boundary faces are oriented and reindexed by the writer.
+    expectedOutput << "12" << std::endl;
+    expectedOutput << "3 0 1 2" << std::endl;
+    expectedOutput << "3 5 1 0" << std::endl;
+    expectedOutput << "3 2 1 5" << std::endl;
+    expectedOutput << "3 2 3 0" << std::endl;
+    expectedOutput << "3 0 3 7" << std::endl;
+    expectedOutput << "3 7 3 2" << std::endl;
+    expectedOutput << "3 5 6 2" << std::endl;
+    expectedOutput << "3 2 6 7" << std::endl;
+    expectedOutput << "3 7 6 5" << std::endl;
+    expectedOutput << "3 0 4 5" << std::endl;
+    expectedOutput << "3 7 4 0" << std::endl;
+    expectedOutput << "3 5 4 7" << std::endl;
 
     // Neighbor relationship between polygons (0 for now)
     expectedOutput << "0" << std::endl;
 
     // Number of polyhedra (1) and polyhedron definition
     expectedOutput << "1" << std::endl;
-    expectedOutput << "16 0 1 2 5 6 7 9 10 11 13 14 15" << std::endl; // 16 faces, face indices
+    expectedOutput << "12 0 1 2 3 4 5 6 7 8 9 10 11" << std::endl; // 12 boundary face indices
 
     // Compare the content
     EXPECT_EQ(fileContent.str(), expectedOutput.str()) << "File content doesn't match expected output";
