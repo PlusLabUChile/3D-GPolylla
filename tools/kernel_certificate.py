@@ -29,3 +29,12 @@ def certify_absence(normals,offsets,tolerance=1e-8):
                   dual_residual_l1=float(np.abs(residual).sum()),roundoff_bound=roundoff,
                   signed_radius=float(result.x[-1]),weights=weights.tolist())
     return record
+
+
+def exact_tetrahedron_orientation(points):
+    """Orientation sign of the input binary64 coordinates, using exact rationals."""
+    from fractions import Fraction
+    p=[[Fraction.from_float(float(value)) for value in point] for point in points]
+    a,b,c=[[p[i][j]-p[0][j] for j in range(3)] for i in (1,2,3)]
+    determinant=(a[0]*(b[1]*c[2]-b[2]*c[1])-a[1]*(b[0]*c[2]-b[2]*c[0])+a[2]*(b[0]*c[1]-b[1]*c[0]))
+    return (determinant>0)-(determinant<0)

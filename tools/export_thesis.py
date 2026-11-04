@@ -23,7 +23,7 @@ def export(analysis_dir,thesis_dir):
     report=json.loads((analysis_dir/'analysis.json').read_text())
     with (analysis_dir/'mesh-summary.csv').open() as f:rows=list(csv.DictReader(f))
     data=thesis_dir/'resultados'/'campana-20261103';data.mkdir(parents=True,exist_ok=True)
-    for name in ('analysis.json','mesh-summary.csv','failures.json','quality-and-timing.pdf','quality-and-timing.svg','quality-and-timing.png'):
+    for name in ('analysis.json','mesh-summary.csv','cell-metric-distributions.csv','failures.json','quality-and-timing.pdf','quality-and-timing.svg','quality-and-timing.png'):
         if (analysis_dir/name).exists():shutil.copyfile(analysis_dir/name,data/name)
     lines=['// Generado desde resultados medidos; regenerar con tools/export_thesis.py.','']
     metadata_file=analysis_dir/'manifest.json'
@@ -49,7 +49,7 @@ def export(analysis_dir,thesis_dir):
         cells=[]
         for variant,label in LABELS.items():
             group=[r for r in rows if r['family']==family and r['variant']==variant and r.get('stratum')!='reference']
-            valid=[r for r in group if r['status']=='complete']
+            valid=[r for r in group if r['status'] in ('complete','complete_with_metric_errors')]
             reduction=float(np.median([float(r['reduction']) for r in valid])) if valid else None
             lower=float(np.median([float(r['kernel_fraction_lower']) for r in valid])) if valid else None
             upper=float(np.median([float(r['kernel_fraction_upper']) for r in valid])) if valid else None

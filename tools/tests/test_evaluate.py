@@ -44,6 +44,20 @@ class QualityTest(unittest.TestCase):
         self.assertEqual(q['edges_merged'], 12)
         self.assertAlmostEqual(q['edge_ratio_merged'], .5)
 
+    def test_thin_tetrahedron_uses_exact_convexity_identity(self):
+        for height in (1e-12,1e-16):
+            v=np.array([[0.,0.,0.],[1.,0.,0.],[0.,1.,0.],[.2,.2,height]])
+            q=quality(v,np.array([[0,1,2,3]]),np.array([height/6]))
+            self.assertEqual(q['kernel_state'],'present')
+            self.assertEqual(q['kernel_fraction'],1)
+            self.assertEqual(q['faces_merged'],4)
+            self.assertEqual(q['rho3_merged'],1)
+
+    def test_flat_tetrahedron_is_not_promoted_by_noisy_volume(self):
+        v=np.array([[0.,0.,0.],[1.,0.,0.],[0.,1.,0.],[.2,.2,0.]])
+        with self.assertRaisesRegex(ValueError,'exact orientation'):
+            quality(v,np.array([[0,1,2,3]]),np.array([1e-20]))
+
     def test_l_and_u(self):
         v, t, volumes = self.voxels([(0,0,0), (1,0,0), (0,1,0)])
         q = quality(v, t, volumes)

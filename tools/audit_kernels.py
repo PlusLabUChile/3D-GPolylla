@@ -13,8 +13,12 @@ import json
 from pathlib import Path
 import numpy as np
 from evaluate import load_mesh,cell_boundary
-from kernel_certificate import certify_absence
+from kernel_certificate import certify_absence, exact_tetrahedron_orientation
 from gen_mesh import sha
+try:
+    from evaluate_strict import quality as strict_quality
+except ModuleNotFoundError:
+    from evaluate import quality as strict_quality
 
 
 def planes(vertices,tetras):
@@ -47,19 +51,22 @@ def corrected_summary(original,details):
     return q
 
 
+AUDIT_VERSION='dual-box-v2-analytic-tetrahedra'
+
+
 def audit_one(path):
     path=Path(path);run=json.loads(path.read_text());folder=path.parent
     checkpoint=folder/'kernel-audit.json'
-    if checkpoint.exists():return json.loads(checkpoint.read_text())
+    if checkpoint.exists():
+        previous=json.loads(checkpoint.read_text())
+        if previous.get('audit_version')==AUDIT_VERSION:return previous
+        (folder/'kernel-audit.previous.json').write_text(json.dumps(previous,indent=2)+'\n')
     q=run.get('quality')
     report={'mesh':run['mesh']['name'],'variant':run['variant'],'status':'not_applicable' if not q else 'complete',
             'checked_absent_cells':0,'certified_absent_cells':0,'downgraded_cells':[],'certificates':[],
-            'audit_version':'dual-box-v1','primary_result_sha256':sha(path)}
-    if q and q['kernel_states']['absent_confirmed']:
-        vertices,tetras,_=load_mesh(run['mesh']['node'],run['mesh']['ele'])
-        membership=folder/'quality_0.membership';owner=np.loadtxt(membership,dtype=int,ndmin=1)
-        order=np.argsort(owner,kind='stable');split=np.flatnonzero(np.diff(owner[order]))+1
-        groups={int(owner[ids[0]]):ids for ids in np.split(order,split)}
+            'analytic_cells':[],'analytically_resolved_absent_cells':0,'merged_indeterminate_cells':[],
+            'audit_version':AUDIT_VERSION,'primary_result_sha256':sha(path)}
+    if q:
         with (folder/'quality_0.details.csv').open() as f:raw=list(csv.DictReader(f))
         details=[]
         for row in raw:
@@ -70,21 +77,72 @@ def audit_one(path):
                     try:parsed[key]=float(value)
                     except ValueError:parsed[key]=value
             details.append(parsed)
+        mesh_cache=None
+        def geometry():
+            nonlocal mesh_cache
+            if mesh_cache is None:
+                vertices,tetras,volumes=load_mesh(run['mesh']['node'],run['mesh']['ele'])
+                owner=np.loadtxt(folder/'quality_0.membership',dtype=int,ndmin=1)
+                order=np.argsort(owner,kind='stable');split=np.flatnonzero(np.diff(owner[order]))+1
+                groups={int(owner[ids[0]]):ids for ids in np.split(order,split)}
+                mesh_cache=(vertices,tetras,volumes,groups)
+            return mesh_cache
+        changed=False
         for row in details:
-            if row['kernel_state']!='absent_confirmed':continue
-            cell=int(row['cell']);normals,offsets=planes(vertices,tetras[groups[cell]])
-            certificate=certify_absence(normals,offsets);certificate['cell']=cell
-            report['certificates'].append(certificate);report['checked_absent_cells']+=1
-            if certificate['certified']:report['certified_absent_cells']+=1
-            else:
-                report['downgraded_cells'].append(cell);row['kernel_state']='indeterminate'
-                for field in ('kernel_volume','kernel_fraction','volume_ratio_legacy','rho1_triangles','rho1_merged'):row[field]=None
-        if report['downgraded_cells']:
+            cell=int(row['cell']);old_state=row['kernel_state'];is_tet=int(row['tetrahedra'])==1
+            fraction=row.get('kernel_fraction')
+            analytic=is_tet and (old_state!='present' or fraction is None or abs(fraction-1)>1e-7
+                      or row.get('faces_merged')!=4 or row.get('rho3_merged')!=1)
+            if analytic:
+                vertices,tetras,volumes,groups=geometry();ids=groups[cell]
+                if exact_tetrahedron_orientation(vertices[tetras[ids[0]]])==0:
+                    row['kernel_state']='error';row['error']='Degenerate tetrahedron confirmed by exact orientation'
+                    for field in ('kernel_volume','kernel_fraction','volume_ratio_legacy','rho1_triangles','rho1_merged'):row[field]=None
+                    report.setdefault('exact_degenerate_cells',[]).append(cell);changed=True
+                    if old_state=='absent_confirmed':
+                        report['checked_absent_cells']+=1;report['downgraded_cells'].append(cell)
+                    continue
+                original_error=row.get('error')
+                if row.get('volume') is None or row.get('rho2_triangles') is None:
+                    vertices,tetras,volumes,groups=geometry();ids=groups[cell]
+                    replacement=strict_quality(vertices,tetras[ids],volumes[ids]);row.update(replacement)
+                row.update(kernel_state='present',kernel_volume=row['volume'],kernel_fraction=1.,volume_ratio_legacy=1.,
+                           surface_ratio=1.,rho1_triangles=1.,rho1_merged=1.,faces_merged=4,edges_merged=6,
+                           edge_ratio_merged=row['edge_ratio_triangles'],rho2_merged=row['rho2_triangles'],rho3_merged=1.,
+                           min_face_to_cell_diameter_merged=row['min_face_to_cell_diameter'],
+                           min_edge_to_face_diameter_merged=row['min_edge_to_face_diameter'])
+                if 'error' in row:row['error']=None
+                report['analytic_cells'].append({'cell':cell,'previous_state':old_state,'previous_error':original_error,
+                                                 'proof':'nondegenerate tetrahedron: kernel and hull equal the cell'})
+                if old_state=='absent_confirmed':
+                    report['checked_absent_cells']+=1;report['analytically_resolved_absent_cells']+=1
+                changed=True
+            elif old_state=='absent_confirmed':
+                vertices,tetras,volumes,groups=geometry()
+                normals,offsets=planes(vertices,tetras[groups[cell]])
+                certificate=certify_absence(normals,offsets);certificate['cell']=cell
+                report['certificates'].append(certificate);report['checked_absent_cells']+=1
+                if certificate['certified']:report['certified_absent_cells']+=1
+                else:
+                    report['downgraded_cells'].append(cell);row['kernel_state']='indeterminate'
+                    for field in ('kernel_volume','kernel_fraction','volume_ratio_legacy','rho1_triangles','rho1_merged'):row[field]=None
+                    changed=True
+            if (row.get('faces_merged') is not None and row['faces_merged']<4) or (row.get('rho3_merged') is not None and row['rho3_merged']>1+1e-7):
+                for field in list(row):
+                    if field.endswith('_merged'):row[field]=None
+                report['merged_indeterminate_cells'].append(cell);changed=True
+        report['unresolved_metric_errors']=[{'cell':int(row['cell']),'cause':row.get('error') or 'Primary kernel construction or volume validation did not provide a usable value'}
+                    for row in details if row['kernel_state']=='error']
+        if changed:
             audited=corrected_summary(q,details)
+            resolved={row['cell'] for row in report['analytic_cells']}
+            audited['primary_failures']=q.get('failures',[])
+            audited['failures']=[failure for failure in q.get('failures',[]) if failure['cell'] not in resolved]
             report['corrected_quality']=audited
             (folder/'quality_audited.quality.json').write_text(json.dumps(audited,indent=2)+'\n')
+            fields=list(dict.fromkeys([*raw[0],*(key for row in details for key in row)]))
             with (folder/'quality_audited.details.csv').open('w') as f:
-                writer=csv.DictWriter(f,fieldnames=list(raw[0]));writer.writeheader();writer.writerows(details)
+                writer=csv.DictWriter(f,fieldnames=fields);writer.writeheader();writer.writerows(details)
     checkpoint.write_text(json.dumps(report,indent=2)+'\n')
     return report
 
@@ -95,8 +153,10 @@ def audit(root,workers=4):
         for row in pool.map(audit_one,paths):
             rows.append({k:v for k,v in row.items() if k not in ('certificates','corrected_quality')})
             print(f'AUDIT {len(rows)}/{len(paths)} {row["mesh"]} {row["variant"]}: {len(row["downgraded_cells"])} downgraded',flush=True)
-    report={'runs':len(rows),'checked_absent_cells':sum(r['checked_absent_cells'] for r in rows),
+    report={'audit_version':AUDIT_VERSION,'runs':len(rows),'checked_absent_cells':sum(r['checked_absent_cells'] for r in rows),
             'certified_absent_cells':sum(r['certified_absent_cells'] for r in rows),
+            'analytically_resolved_cells':sum(len(r['analytic_cells']) for r in rows),
+            'analytically_resolved_absent_cells':sum(r['analytically_resolved_absent_cells'] for r in rows),
             'downgraded_cells':sum(len(r['downgraded_cells']) for r in rows),'rows':rows}
     (root/'kernel-audit.json').write_text(json.dumps(report,indent=2)+'\n')
     return report

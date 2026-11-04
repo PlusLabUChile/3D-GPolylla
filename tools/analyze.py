@@ -50,13 +50,16 @@ def holm(pvalues):
 def analyze(root,out):
     root=Path(root);out=Path(out);out.mkdir(parents=True,exist_ok=True)
     rows=[]
-    for path in (root/'runs').glob('*/*/result.json'):
+    for path in sorted((root/'runs').glob('*/*/result.json')):
         row=json.loads(path.read_text())
         audit_file=path.parent/'kernel-audit.json'
         if row.get('quality') and not audit_file.exists():raise RuntimeError(f'Missing kernel audit: {path.parent}')
         if audit_file.exists():
             audit=json.loads(audit_file.read_text())
-            if audit.get('corrected_quality'):row['quality']=audit['corrected_quality']
+            if audit.get('corrected_quality'):
+                row['quality']=audit['corrected_quality']
+                row['primary_status']=row['status']
+                row['status']='complete' if not row['quality']['kernel_states']['error'] else 'complete_with_metric_errors'
             row['kernel_audit_downgraded']=len(audit['downgraded_cells'])
         if row.get('status')=='failed':
             cause=row.get('cause','')
@@ -91,7 +94,7 @@ def analyze(root,out):
         mesh=row['mesh'];q=row.get('quality',{})
         summary.append({'mesh':mesh['name'],'family':mesh['family'],'target_vertices':mesh.get('n'),
                         'seed':mesh.get('seed'),'stratum':mesh.get('stratum'),'variant':row['variant'],
-                        'status':row['status'],'vertices':q.get('vertices'),'tetrahedra':q.get('tetrahedra'),
+                        'status':row['status'],'primary_status':row.get('primary_status',row['status']),'vertices':q.get('vertices'),'tetrahedra':q.get('tetrahedra'),
                         'cells':q.get('cells'),'reduction':q.get('reduction'),'isolated':q.get('isolated'),
                         'kernel_fraction_lower':q.get('kernel_fraction_lower'),'kernel_fraction_upper':q.get('kernel_fraction_upper'),
                         **{f'kernel_{state}':q.get('kernel_states',{}).get(state) for state in ('present','absent_confirmed','indeterminate','error')},
@@ -101,6 +104,16 @@ def analyze(root,out):
     if summary:
         with (out/'mesh-summary.csv').open('w') as f:
             writer=csv.DictWriter(f,fieldnames=list(summary[0]));writer.writeheader();writer.writerows(summary)
+    distributions=[]
+    for row in complete:
+        for metric,statistics in row['quality'].get('metrics',{}).items():
+            if metric=='cell':continue
+            distributions.append({'mesh':row['mesh']['name'],'family':row['mesh']['family'],'variant':row['variant'],
+                 'metric':metric,'cells_total':row['quality']['cells'],**statistics})
+    if distributions:
+        with (out/'cell-metric-distributions.csv').open('w') as f:
+            writer=csv.DictWriter(f,fieldnames=['mesh','family','variant','metric','cells_total','min','p5','median','p95','max','valid_count'])
+            writer.writeheader();writer.writerows(distributions)
     baselines=('face-area','face-incircle','face-area-repair','face-incircle-repair','edge','pairs')
     comparisons=[]
     for baseline in baselines:
@@ -112,7 +125,6 @@ def analyze(root,out):
                 if row['variant']!='cavity-ascending' or row['mesh']['family']!=family or row['mesh'].get('stratum')=='reference':continue
                 other=index.get((row['mesh']['name'],baseline))
                 if not other or 'quality' not in other:continue
-                if row['quality']['kernel_states']['error'] or other['quality']['kernel_states']['error']:continue
                 pairs.append((row['quality'],other['quality'],row['mesh']))
             if not pairs:
                 baseline_rows.append({'baseline':baseline,'family':family,'n':0,'planned_pairs':expected_pairs,'pair_coverage':0.,'p_raw':1.})
@@ -146,7 +158,6 @@ def analyze(root,out):
                 other=index.get((row['mesh']['name'],variant))
                 if not other or 'quality' not in other:continue
                 a,b=row['quality'],other['quality']
-                if a['kernel_states']['error'] or b['kernel_states']['error']:continue
                 lower.append(b['kernel_fraction_lower']-a['kernel_fraction_upper'])
                 upper.append(b['kernel_fraction_upper']-a['kernel_fraction_lower'])
                 reduction.append(b['reduction']-a['reduction'])
@@ -190,7 +201,7 @@ def analyze(root,out):
     flat=json.loads(flat_file.read_text()) if flat_file.exists() else []
     report={'bootstrap_resamples':BOOTSTRAPS,'bootstrap_seed':SEED,'mesh_unit_of_analysis':True,'real_bootstrap':'within observed strata','synthetic_sensitivity':'resample seed clusters across sizes',
             'kernel_audit':json.loads((root/'kernel-audit.json').read_text()) if (root/'kernel-audit.json').exists() else None,
-            'planned_jobs_completed_or_failed':len(rows),'status_counts':dict(Counter(row['status'] for row in rows)),
+            'planned_jobs_completed_or_failed':len(rows),'status_counts':dict(Counter(row['status'] for row in rows)),'primary_status_counts':dict(Counter(row.get('primary_status',row['status']) for row in rows)),
             'failure_categories':dict(Counter(row['failure_category'] for row in summary if row['status']=='failed')),
             'failures_by_family_variant':{str(key):value for key,value in Counter((row['family'],row['variant']) for row in failures).items()},
             'comparisons':comparisons,'seed_order_comparisons':seed_results,'timing':timing_summary,'timing_ratios':time_ratios,

@@ -97,6 +97,8 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
             bounded([root/'frozen/GPolyllaMemory',folder/'input.1.node',folder/'input.1.ele',inventory_file],out/'inventory.log',memory=memory)
             with inventory_file.open() as f:inventory=next(csv.DictReader(f))
             if int(record['nested_capacity_bytes'])!=int(inventory['output_cell_capacity_bytes']):raise ValueError('Independent per-cell capacity counters disagree')
+            record['flat_cycle_ms']=float(record['flat_build_ms'])
+            record['flat_time_scope']='allocate, fill and release flat auxiliary containers; one sample, not a speed claim'
             record['inventory']=inventory
             record['flat_retained_sum_bytes']=int(inventory['retained_sum_bytes'])-int(inventory['output_cell_capacity_bytes'])+int(record['flat_actual_bytes'])
             record.update(family=family,status='complete')

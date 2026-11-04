@@ -39,3 +39,8 @@ de `evaluate.py` exige el mismo certificado. `evaluate_timed.py` mide por separa
 lectura, estadísticas por celda y agregación/exportación; no modifica las métricas.
 `validate_published.py` importa y verifica mallas del dataset publicado de P035;
 `validate_scale.py` comprueba pertenencia bajo reescalamiento y traslación.
+
+En E6, el campo histórico `flat_build_ms` abarca el ciclo de reservar, llenar y
+liberar los contenedores aplanados. Se exporta también como `flat_cycle_ms` con
+su alcance explícito; no se interpreta como una comparación de velocidad ni
+como el pico RSS de una implementación que sustituya las listas actuales.

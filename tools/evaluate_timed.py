@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Supplemental E5 timing of the unchanged common quality evaluator.
+"""Supplemental E5 timing of the corrected common quality evaluator.
 
-This wrapper changes no geometry, states or aggregation rules. It records read
+The wrapper changes no geometry, states or aggregation rules of the corrected evaluator. It records read
 and per-cell statistics separately, plus full evaluator wall time. Primary
 quality runs retain their original frozen evaluator and outputs.
 """

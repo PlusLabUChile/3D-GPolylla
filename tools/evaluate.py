@@ -14,7 +14,7 @@ import numpy as np
 from scipy.optimize import linprog
 from scipy.spatial import ConvexHull, HalfspaceIntersection, QhullError
 from scipy.spatial.distance import pdist
-from kernel_certificate import certify_absence
+from kernel_certificate import certify_absence, exact_tetrahedron_orientation
 
 
 def rows(path):
@@ -93,7 +93,7 @@ def kernel_measure(normals, offsets, dimension=3):
         return 'indeterminate', None, None
 
 
-def merged_faces(points, triangles, normals, offsets):
+def merged_faces(points, triangles, normals, offsets, merge_coplanar=True):
     # Adjacent coplanar triangles become one polygon. A hole or branching
     # boundary is explicitly unsupported and leaves merged rho undefined.
     edges = defaultdict(list)
@@ -102,7 +102,7 @@ def merged_faces(points, triangles, normals, offsets):
             edges[tuple(sorted((int(tri[j]), int(tri[(j+1) % 3]))))].append(i)
     adjacent = defaultdict(list)
     for incident in edges.values():
-        if len(incident) == 2:
+        if merge_coplanar and len(incident) == 2:
             i, j = incident
             if np.linalg.norm(normals[i]-normals[j]) < 1e-9 and abs(offsets[i]-offsets[j]) < 1e-9:
                 adjacent[i].append(j)
@@ -200,18 +200,27 @@ def quality(vertices, tetras, volumes):
     triangles, normals, offsets, areas = map(np.array, (triangles, normals, offsets, areas))
     volume = float(volumes.sum())
     normalized_volume = volume / scale ** 3
-    hull = ConvexHull((cell_points-origin) / scale)
-    if np.max(points @ normals.T + offsets) <= 1e-10 and abs(hull.volume-normalized_volume) <= normalized_volume*1e-9:
-        state, kv = 'present', float(hull.volume)
-    elif np.max(offsets) < -1e-8:
-        try:
-            intersections = HalfspaceIntersection(np.column_stack((normals, offsets)), np.zeros(3)).intersections
-            kv = float(ConvexHull(intersections).volume)
-            state = 'present'
-        except (QhullError, ValueError):
-            state, kv, _ = kernel_measure(normals, offsets)
+    if len(tetras) == 1:
+        # A nondegenerate tetrahedron is convex: its kernel and hull are itself.
+        # This identity avoids unstable hull volume ratios on very thin tets.
+        if exact_tetrahedron_orientation(vertices[tetras[0]])==0:
+            raise ValueError('Degenerate tetrahedron confirmed by exact orientation')
+        hull_area = float(areas.sum())
+        state, kv = 'present', normalized_volume
     else:
-        state, kv, _ = kernel_measure(normals, offsets)
+        hull = ConvexHull((cell_points-origin) / scale)
+        hull_area = float(hull.area)
+        if np.max(points @ normals.T + offsets) <= 1e-10 and abs(hull.volume-normalized_volume) <= normalized_volume*1e-9:
+            state, kv = 'present', float(hull.volume)
+        elif np.max(offsets) < -1e-8:
+            try:
+                intersections = HalfspaceIntersection(np.column_stack((normals, offsets)), np.zeros(3)).intersections
+                kv = float(ConvexHull(intersections).volume)
+                state = 'present'
+            except (QhullError, ValueError):
+                state, kv, _ = kernel_measure(normals, offsets)
+        else:
+            state, kv, _ = kernel_measure(normals, offsets)
     fraction = kv / normalized_volume if kv is not None else None
     if fraction is not None and not (-1e-7 <= fraction <= 1 + 1e-7):
         state, fraction, kv = 'error', None, None
@@ -226,9 +235,12 @@ def quality(vertices, tetras, volumes):
     rho2_face = np.minimum(np.sqrt(areas), face_min) / np.maximum(np.sqrt(areas), face_h)
     rho2 = .5 * (min(np.cbrt(normalized_volume), face_h.min()) / max(np.cbrt(normalized_volume), diameter) + rho2_face.mean())
     rho3 = .5 * (4 / len(triangles) + 1)
-    merged, merged_edges = merged_faces(points, triangles, normals, offsets)
+    merged, merged_edges = merged_faces(points, triangles, normals, offsets, merge_coplanar=len(tetras)>1)
     merged_rho1 = merged_rho2 = merged_rho3 = None
     merged_edge_ratio = None
+    if merged is not None:
+        if len(merged)<4:
+            merged = None
     if merged is not None:
         lengths_merged = [np.linalg.norm(points[a]-points[b]) for a, b in merged_edges]
         merged_edge_ratio = min(lengths_merged) / max(lengths_merged)
@@ -241,7 +253,7 @@ def quality(vertices, tetras, volumes):
             'surface_area': float(areas.sum() * scale ** 2), 'kernel_state': state,
             'kernel_volume': kv * scale ** 3 if kv is not None else None, 'kernel_fraction': fraction,
             'volume_ratio_legacy': 1 / fraction if fraction is not None and fraction > 0 else None,
-            'surface_ratio': float(areas.sum() / hull.area), 'edge_ratio_triangles': float(lengths.min()/lengths.max()),
+            'surface_ratio': float(areas.sum() / hull_area), 'edge_ratio_triangles': float(lengths.min()/lengths.max()),
             'faces_triangles': len(triangles), 'edges_triangles': len(edges),
             'faces_merged': len(merged) if merged is not None else None, 'edges_merged': len(merged_edges) if merged is not None else None,
             'min_face_to_cell_diameter_merged': min(f['diameter'] for f in merged)/diameter if merged is not None else None,
