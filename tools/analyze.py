@@ -58,6 +58,21 @@ def analyze(root,out):
             audit=json.loads(audit_file.read_text())
             if audit.get('corrected_quality'):row['quality']=audit['corrected_quality']
             row['kernel_audit_downgraded']=len(audit['downgraded_cells'])
+        if row.get('status')=='failed':
+            cause=row.get('cause','')
+            diagnostic=''
+            if 'see ' in cause:
+                logfile=Path(cause.rsplit('see ',1)[1].strip())
+                if logfile.exists():
+                    lines=[line for line in logfile.read_text(errors='replace').splitlines() if line.strip()]
+                    diagnostic=lines[-1] if lines else ''
+            row['failure_detail']=diagnostic or cause
+            lowered=row['failure_detail'].lower()
+            row['failure_category']=('timeout' if 'timeout' in lowered or 'exceeded' in lowered else
+              'memory' if 'memoryerror' in lowered or 'bad_alloc' in lowered else
+              'disconnected_partition' if 'disconnected' in lowered else
+              'incomplete_partition' if 'uncovered' in lowered or 'incomplete partition' in lowered else
+              'duplicate_partition' if 'duplicates' in lowered or 'exclusivity' in lowered else 'other')
         rows.append(row)
     index={(r['mesh']['name'],r['variant']):r for r in rows}
     complete=[r for r in rows if r['status'] in ('complete','complete_with_metric_errors')]
@@ -82,7 +97,7 @@ def analyze(root,out):
                         **{f'kernel_{state}':q.get('kernel_states',{}).get(state) for state in ('present','absent_confirmed','indeterminate','error')},
                         'rho_triangles_lower':q.get('rho_triangles_whole_lower'),'rho_triangles_upper':q.get('rho_triangles_whole_upper'),
                         'rho_merged_lower':q.get('rho_merged_whole_lower'),'rho_merged_upper':q.get('rho_merged_whole_upper'),
-                        'rss_kib':row.get('rss_kib'),'cause':row.get('cause','')})
+                        'rss_kib':row.get('rss_kib'),'cause':row.get('cause',''),'failure_detail':row.get('failure_detail',''),'failure_category':row.get('failure_category','')})
     if summary:
         with (out/'mesh-summary.csv').open('w') as f:
             writer=csv.DictWriter(f,fieldnames=list(summary[0]));writer.writeheader();writer.writerows(summary)
@@ -176,6 +191,7 @@ def analyze(root,out):
     report={'bootstrap_resamples':BOOTSTRAPS,'bootstrap_seed':SEED,'mesh_unit_of_analysis':True,'real_bootstrap':'within observed strata','synthetic_sensitivity':'resample seed clusters across sizes',
             'kernel_audit':json.loads((root/'kernel-audit.json').read_text()) if (root/'kernel-audit.json').exists() else None,
             'planned_jobs_completed_or_failed':len(rows),'status_counts':dict(Counter(row['status'] for row in rows)),
+            'failure_categories':dict(Counter(row['failure_category'] for row in summary if row['status']=='failed')),
             'failures_by_family_variant':{str(key):value for key,value in Counter((row['family'],row['variant']) for row in failures).items()},
             'comparisons':comparisons,'seed_order_comparisons':seed_results,'timing':timing_summary,'timing_ratios':time_ratios,
             'statistics_timing':statistics_timing,'flat_representation':flat,'extensions':{'E3':'excluded: optional Voronoi extension outside core campaign',

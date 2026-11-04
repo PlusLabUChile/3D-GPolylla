@@ -26,6 +26,25 @@ def export(analysis_dir,thesis_dir):
     for name in ('analysis.json','mesh-summary.csv','failures.json','quality-and-timing.pdf','quality-and-timing.svg','quality-and-timing.png'):
         if (analysis_dir/name).exists():shutil.copyfile(analysis_dir/name,data/name)
     lines=['// Generado desde resultados medidos; regenerar con tools/export_thesis.py.','']
+    metadata_file=analysis_dir/'manifest.json'
+    if metadata_file.exists():
+        metadata=json.loads(metadata_file.read_text())
+        shutil.copyfile(metadata_file,data/'manifest.json')
+        cpu=next((line.split(':',1)[1].strip() for line in metadata['cpuinfo'].splitlines() if line.startswith('model name')),'No registrado')
+        processors=sum(line.startswith('processor') for line in metadata['cpuinfo'].splitlines())
+        ram=int(next(line.split()[1] for line in metadata['meminfo'].splitlines() if line.startswith('MemTotal:')))/1024**2
+        def escape(value):
+            value=str(value)
+            for char in ('\\','#','$','[',']','*','_','@','<','>'):value=value.replace(char,'\\'+char)
+            return value
+        fields=[('CPU expuesta a WSL',cpu),('CPU lógicas',str(processors)),('RAM expuesta a WSL',f'{ram:.2f} GiB'),
+                ('Plataforma','Ubuntu/WSL2; '+metadata['platform'].split('-with-')[0]),
+                ('Compilador',metadata['compiler'].splitlines()[0]),('Construcción',metadata['cxx_flags']),
+                ('NumPy / SciPy',metadata['python_distributions']['numpy']['version']+' / '+metadata['python_distributions']['scipy']['version'])]
+        lines+=['#figure(table(columns: (1.1fr, 2.6fr), inset: 4pt,',
+                *[f'  [{escape(key)}], [{escape(value)}],' for key,value in fields],
+                '), caption: [Equipo y configuración efectivos; los recursos corresponden a WSL.]) <tab:ex-equipo>','']
+
     for family,title in FAMILIES.items():
         cells=[]
         for variant,label in LABELS.items():
