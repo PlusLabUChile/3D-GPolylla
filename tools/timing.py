@@ -28,7 +28,7 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
     rows=[];limits=[]
     for family in ('random','quality'):
         active=['cavity-ascending','face-area','face-incircle','face-area-repair','face-incircle-repair']
-        for n in (500,1000,5000,10000,50000,100000,250000,500000,1000000,2000000,4000000):
+        for n in (500,1000,5000,10000,50000,100000,250000,500000,1000000,2000000,4000000,8000000,16000000):
             if n>max_n or not active:break
             name=f'{family}_{n}_s1';folder=root/'meshes'/name
             folder.mkdir(parents=True,exist_ok=True)
@@ -42,6 +42,7 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
                     break
             node,ele=folder/'input.1.node',folder/'input.1.ele'
             out=root/'timing'/name;out.mkdir(parents=True,exist_ok=True)
+            measured_new=False
             for variant in active.copy():
                 prefix=out/f'{variant}_warmup'
                 try:
@@ -55,8 +56,13 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
                 for variant in order:
                     prefix=out/f'{variant}_r{repetition:02d}'
                     result_file=Path(str(prefix)+'.result.json')
-                    if result_file.exists():record=json.loads(result_file.read_text())
+                    if result_file.exists():
+                        record=json.loads(result_file.read_text())
+                        if record['status']=='failed' and variant in active:
+                            active.remove(variant)
+                            limits.append({**record,'phase':'measurement'})
                     else:
+                        measured_new=True
                         try:
                             record=one(exe,node,ele,variant,prefix,memory)
                             record.update(family=family,n=n,repetition=repetition,status='complete')
@@ -83,7 +89,7 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
             limits.append({'family':family,'n':n,'phase':'block','status':'complete','remaining_variants':active.copy()})
             (root/'timing-limits.json').write_text(json.dumps(limits,indent=2)+'\n')
             print(f'E5 {name}: completed; variants {active}',flush=True)
-            if cooldown:time.sleep(cooldown)
+            if cooldown and measured_new:time.sleep(cooldown)
     # E6 measures only cell containers, with the common tetrahedral mesh excluded
     # on both sides. Memory is allocated, not merely estimated.
     flat=[]

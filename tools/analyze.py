@@ -127,7 +127,7 @@ def analyze(root,out):
                 if not other or 'quality' not in other:continue
                 pairs.append((row['quality'],other['quality'],row['mesh']))
             if not pairs:
-                baseline_rows.append({'baseline':baseline,'family':family,'n':0,'planned_pairs':expected_pairs,'pair_coverage':0.,'p_raw':1.})
+                baseline_rows.append({'baseline':baseline,'family':family,'n':0,'planned_pairs':expected_pairs,'pair_coverage':0.,'p_raw':None})
                 continue
             lower=[a['kernel_fraction_lower']-b['kernel_fraction_upper'] for a,b,mesh in pairs]
             upper=[a['kernel_fraction_upper']-b['kernel_fraction_lower'] for a,b,mesh in pairs]
@@ -137,14 +137,15 @@ def analyze(root,out):
             primary_interval=(lambda values: grouped_interval(values,[mesh.get('stratum') for a,b,mesh in pairs],'stratified')) if family=='real' else interval
             cluster_lower=grouped_interval(lower,[mesh['seed'] for a,b,mesh in pairs],'cluster') if family in ('random','poisson') else None
             cluster_reduction=grouped_interval(reduction,[mesh['seed'] for a,b,mesh in pairs],'cluster') if family in ('random','poisson') else None
-            pvalue=float(wilcoxon(np.round(exact,12),alternative='two-sided').pvalue) if exact and np.any(np.round(exact,12)!=0) else 1.
+            pvalue=float(wilcoxon(np.round(exact,12),alternative='two-sided').pvalue) if exact and np.any(np.round(exact,12)!=0) else (1. if exact else None)
             baseline_rows.append({'baseline':baseline,'family':family,'n':len(pairs),'planned_pairs':expected_pairs,'pair_coverage':len(pairs)/expected_pairs if expected_pairs else 0.,'kernel_difference_lower':primary_interval(lower),
                 'kernel_difference_upper':primary_interval(upper),'kernel_difference_fully_resolved':interval(exact),
                 'reduction_difference':primary_interval(reduction),'cluster_sensitivity_kernel_lower':cluster_lower,'cluster_sensitivity_reduction':cluster_reduction,'noninferiority_fraction_per_mesh':float(np.mean(np.asarray(reduction)>=-.1)),
                 'p_raw':pvalue,'wilcoxon_resolved_pairs':len(exact)})
-        corrected=holm([row['p_raw'] for row in baseline_rows])
+        # Preserve the five-family correction budget; missing tests are not p=1 observations.
+        corrected=holm([row['p_raw'] if row['p_raw'] is not None else 1. for row in baseline_rows])
         for row,pvalue in zip(baseline_rows,corrected):
-            row['p_holm_5_families']=pvalue
+            row['p_holm_5_families']=pvalue if row['p_raw'] is not None else None
             effect=row.get('kernel_difference_lower')
             row['h3a_effect_pass_on_observed_pairs']=bool(effect and effect['median']>=.05 and effect['ci95_low']>0)
             row['h3a_evaluable_as_planned']=row.get('pair_coverage',0)==1.
@@ -216,20 +217,20 @@ def analyze(root,out):
         import matplotlib.pyplot as plt
         from matplotlib.ticker import PercentFormatter
         variants=('cavity-ascending','face-area','face-incircle','edge','pairs')
-        plt.rcParams.update({'font.size':14,'axes.labelsize':16,'xtick.labelsize':14,'ytick.labelsize':14})
+        plt.rcParams.update({'font.size':11,'axes.labelsize':12,'xtick.labelsize':11,'ytick.labelsize':11})
         labels={'cavity-ascending':'Cavidades','face-area':'Face área','face-incircle':'Face radio','edge':'Edge','pairs':'Pares'}
         colors={variant:f'C{i}' for i,variant in enumerate(variants)}
-        fig,axes=plt.subplots(1,2,figsize=(11,4.5),layout='constrained')
+        fig,axes=plt.subplots(2,1,figsize=(7,8),layout='constrained')
         for variant in variants:
             data=[row for row in summary if row['variant']==variant and row['status']!='failed' and row['family']!='real']
             if data:axes[0].scatter([row['reduction'] for row in data],[row['kernel_fraction_lower'] for row in data],s=20,alpha=.6,label=labels[variant],color=colors[variant])
-        axes[0].set(xlabel='Reducción de celdas',ylabel='Fracción mínima confirmada con kernel');axes[0].legend(fontsize=14);axes[0].set(xlim=(0,1),ylim=(0,1.03))
+        axes[0].set(xlabel='Reducción de celdas',ylabel='Kernel confirmado (cota inferior)');axes[0].legend(fontsize=10);axes[0].set(xlim=(0,1),ylim=(0,1.03))
         axes[0].xaxis.set_major_formatter(PercentFormatter(1));axes[0].yaxis.set_major_formatter(PercentFormatter(1))
         for family,marker in [('random','o'),('quality','s')]:
             for variant in variants[:3]:
                 values=[row for row in timing_summary if row['family']==family and row['variant']==variant]
                 if values:axes[1].loglog([r['n'] for r in values],[r['algorithm_ms']['median'] for r in values],marker=marker,label=f'{family.title()}: {labels[variant]}',color=colors[variant])
-        axes[1].set(xlabel='Vértices objetivo',ylabel='Tiempo de algoritmo (ms)');axes[1].legend(fontsize=14)
+        axes[1].set(xlabel='Vértices objetivo',ylabel='Tiempo de algoritmo (ms)');axes[1].legend(fontsize=10)
         fig.savefig(out/'quality-and-timing.pdf');fig.savefig(out/'quality-and-timing.svg');fig.savefig(out/'quality-and-timing.png',dpi=180);plt.close(fig)
     except ImportError:pass
     return report
