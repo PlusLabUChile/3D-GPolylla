@@ -13,7 +13,13 @@ from scipy.stats import qmc
 
 
 def sha(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def first_header_count(path):
+    with Path(path).open() as stream:
+        return int(stream.readline().split()[0])
 
 
 def generate(family, n, seed, out, tetgen, epsilon=0):
@@ -74,7 +80,7 @@ def generate(family, n, seed, out, tetgen, epsilon=0):
     calibration_commands = [cmd]
     if family == 'quality':
         for iteration in range(4):
-            actual = int((out / 'input.1.node').read_text().split()[0])
+            actual = first_header_count(out / 'input.1.node')
             if abs(actual-n)/n < .08:
                 break
             parameters['max_volume'] *= actual/n
@@ -86,8 +92,8 @@ def generate(family, n, seed, out, tetgen, epsilon=0):
     files = ['input.1.node', 'input.1.ele', 'input.1.face', 'input.1.edge']
     info = {'family': family, 'target_vertices': n, 'seed': seed, 'parameters': parameters,
             'command': cmd, 'tetgen_sha256': sha(tetgen), 'numpy': np.__version__, 'scipy': scipy.__version__,
-            'vertices': int((out / files[0]).read_text().split()[0]),
-            'tetrahedra': int((out / files[1]).read_text().split()[0]),
+            'vertices': first_header_count(out / files[0]),
+            'tetrahedra': first_header_count(out / files[1]),
             'hashes': {name: sha(out / name) for name in files}}
     manifest.write_text(json.dumps(info, indent=2) + '\n')
     return info

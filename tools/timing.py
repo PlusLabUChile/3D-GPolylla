@@ -21,10 +21,18 @@ def one(exe,node,ele,variant,prefix,memory,flat=False):
     return record
 
 
-def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
+def timing(root,exe,tetgen,cooldown=120,max_n=4000000,reuse_flat=False,reuse_generation_failures=False):
     resource.setrlimit(resource.RLIMIT_CORE,(0,0))
     root=Path(root).resolve()
     memory=int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:')))*1024*3//4
+    limits_file=root/'timing-limits.json'
+    previous_generation_failures={}
+    if reuse_generation_failures and limits_file.exists():
+        previous_generation_failures={
+            (row['family'],row['n']):row
+            for row in json.loads(limits_file.read_text())
+            if row['phase']=='generation' and row['status']=='failed'
+        }
     rows=[];limits=[]
     for family in ('random','quality'):
         active=['cavity-ascending','face-area','face-incircle','face-area-repair','face-incircle-repair']
@@ -33,6 +41,11 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
             name=f'{family}_{n}_s1';folder=root/'meshes'/name
             folder.mkdir(parents=True,exist_ok=True)
             if not (folder/'manifest.json').exists():
+                previous_failure=previous_generation_failures.get((family,n))
+                if previous_failure is not None:
+                    limits.append(previous_failure)
+                    limits_file.write_text(json.dumps(limits,indent=2)+'\n')
+                    break
                 try:
                     bounded([sys.executable,Path(__file__).with_name('gen_mesh.py'),'--family',family,'--n',n,'--seed','1',
                              '--out',folder,'--tetgen',tetgen],folder/'generation.log',memory=memory)
@@ -90,6 +103,8 @@ def timing(root,exe,tetgen,cooldown=120,max_n=4000000):
             (root/'timing-limits.json').write_text(json.dumps(limits,indent=2)+'\n')
             print(f'E5 {name}: completed; variants {active}',flush=True)
             if cooldown and measured_new:time.sleep(cooldown)
+    if reuse_flat:
+        return rows,limits,json.loads((root/'flat-results.json').read_text())
     # E6 measures only cell containers, with the common tetrahedral mesh excluded
     # on both sides. Memory is allocated, not merely estimated.
     flat=[]
@@ -119,4 +134,8 @@ if __name__=='__main__':
     for name in ('root','exe','tetgen'):p.add_argument('--'+name,required=True)
     p.add_argument('--cooldown',type=int,default=120)
     p.add_argument('--max-n',type=int,default=4000000)
-    a=p.parse_args();timing(a.root,a.exe,a.tetgen,a.cooldown,a.max_n)
+    p.add_argument('--reuse-flat',action='store_true',help='Keep the existing E6 results when extending E5 for the same campaign')
+    p.add_argument('--reuse-generation-failures',action='store_true',
+                   help='Keep prior generation limits for sizes with no valid mesh')
+    a=p.parse_args()
+    timing(a.root,a.exe,a.tetgen,a.cooldown,a.max_n,a.reuse_flat,a.reuse_generation_failures)
