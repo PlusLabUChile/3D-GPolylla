@@ -176,6 +176,8 @@ vcpkg_installed/
 # End of https://www.toptal.com/developers/gitignore/api/cmake,c++,clion,vcpkg
 
 build/
+!presentation/build/
+!presentation/build/sites-vite-plugin.ts
 .cache/
 */.DS_Store
 .idea/

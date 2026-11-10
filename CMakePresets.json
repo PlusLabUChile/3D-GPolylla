@@ -5,7 +5,7 @@
             "name": "Debug",
             "displayName": "Debug version",
             "generator": "Ninja",
-            "binaryDir": "${workspaceFolder}/build",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
